@@ -89,7 +89,6 @@ class PredictivConvNet(hk.Module):
         ])(x)
         return sigmoid(x)
 
-
 # Internal Cell
 class CounterNetMLPConfigs(BaseParser):
     enc_sizes: List[int]

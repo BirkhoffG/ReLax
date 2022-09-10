@@ -302,7 +302,7 @@ class CounterNetTrainingModuleMLP(CounterNetTrainingModule):
 # Cell
 class CounterNetTrainingModuleConv(CounterNetTrainingModule):
     def __init__(self, m_configs: Dict[str, Any]):
-        net = make_model(m_configs, CounterNetConv)
+        net = make_model(None, CounterNetConv)
         super().__init__(net, m_configs)
 
     def init_net_opt(self, data_module, key):

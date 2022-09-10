@@ -11,7 +11,6 @@ from .utils import validate_configs
 from torchvision import datasets, transforms
 import torch.nn.functional as F
 
-
 # Cell
 class NumpyDataset(Dataset):
     def __init__(self, X, y):
@@ -187,7 +186,6 @@ class MNISTDataConfigs(BaseParser):
     labels: List[int] = [1, 7] # len(labels) == 2
     data_dir: str = '/tmp/data/'
 
-
 # Internal Cell
 def split_x_and_y_MNIST(dataset, labels):
     X = dataset.data
@@ -198,7 +196,6 @@ def split_x_and_y_MNIST(dataset, labels):
     assert len(data) == len(targets)
     assert sum(y == float(labels[1])) == sum(targets)
     return data.numpy().astype(jnp.float32), targets.numpy().astype(jnp.float32).reshape(-1, 1)
-
 
 # Cell
 class FlattenAndCast(object):
@@ -252,4 +249,3 @@ class MNISTDataModule:
         train_X, train_y = self.train_dataset[:]
         train_size = int(len(train_X) * frac)
         return train_X[:train_size]
-

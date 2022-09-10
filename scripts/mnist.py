@@ -3,8 +3,6 @@ from cfnet.datasets import MNISTDataModule, MNISTDataConfigs
 from cfnet.train import train_model
 from cfnet.training_module import PredictiveTrainingModule, CounterNetTrainingModuleConv
 from cfnet.utils import make_model
-import os
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
 if __name__ == "__main__":
     d_configs = MNISTDataConfigs(batch_size=128)
@@ -19,9 +17,9 @@ if __name__ == "__main__":
         'monitor_metrics': 'val/val_loss'
     }
 
-    # train_model(
-    #     model, dm, t_configs
-    # )
+    train_model(
+        model, dm, t_configs
+    )
 
     cfnet_configs = {
         "lr": 0.003,
