@@ -94,6 +94,14 @@ def generate_cf_results_cfnet(
 ) -> CFExplanationResults:
     return generate_cf_results(cf_module, dm, params=params, rng_key=rng_key)
 
+# Internal Cell
+def _compute_proximity(x, cf):
+    return jnp.abs(x - cf).mean()
+
+def _compute_sparsity(x, cf):
+    diff = x - cf
+    return jnp.linalg.norm(diff, ord=0) / x.shape[0]
+
 # Cell
 def compute_predictive_acc(cf_results: CFExplanationResults):
     X, y = cf_results.data_module.test_dataset[:]
@@ -114,18 +122,23 @@ def compute_validity(cf_results: CFExplanationResults):
 
 def compute_proximity(cf_results: CFExplanationResults):
     X, y = cf_results.data_module.test_dataset[:]
-    return proximity(X, cf_results.cfs).item()
+    cfs = cf_results.cfs
+    # return proximity(X, cf_results.cfs).item()
+    return jnp.mean(vmap(_compute_proximity)(X, cfs)).item()
 
 def compute_sparsity(cf_results: CFExplanationResults):
+    print(cf_results.cfs.shape)
     X, y = cf_results.data_module.test_dataset[:]
     cfs = cf_results.cfs
-    cat_idx = cf_results.data_module.cat_idx
-    # calculate sparsity
-    cat_sparsity = proximity(X[:, cat_idx:], cfs[:, cat_idx:]) / 2
-    cont_sparsity = jnp.linalg.norm(
-        jnp.abs(X[:, :cat_idx] - cfs[:, :cat_idx]), ord=0, axis=1
-    ).mean()
-    return cont_sparsity + cat_sparsity
+    return jnp.mean(vmap(_compute_sparsity)(X, cfs)).item()
+
+    # cat_idx = cf_results.data_module.cat_idx
+    # # calculate sparsity
+    # cat_sparsity = proximity(X[:, cat_idx:], cfs[:, cat_idx:]) / 2
+    # cont_sparsity = jnp.linalg.norm(
+    #     jnp.abs(X[:, :cat_idx] - cfs[:, :cat_idx]), ord=0, axis=1
+    # ).mean()
+    # return cont_sparsity + cat_sparsity
 
 def compute_manifold_dist(cf_results: CFExplanationResults):
     X, y = cf_results.data_module.test_dataset[:]
@@ -185,6 +198,7 @@ metrics2fn = {
     "validity": compute_validity,
     "proximity": compute_proximity,
     "runtime": get_runtime,
+    "sparsity": compute_sparsity,
     "manifold_dist": compute_manifold_dist,
     "so_validity": compute_so_validity,
     "so_proximity": compute_so_proximity,

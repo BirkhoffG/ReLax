@@ -43,7 +43,7 @@ cfnet_configs = {
     "lambda_1": 1.0,
     "lambda_3": 0.1,
     "lambda_2": 0.2,
-    "use_immutable": True
+    "use_immutable": False
 }
 
 t_configs = {
@@ -54,7 +54,7 @@ t_configs = {
 cf_results_list = []
 
 def store_benchmark():
-    benchmark_df = benchmark_cfs(cf_results_list, DEFAULT_METRICS + ['manifold_dist'])
+    benchmark_df = benchmark_cfs(cf_results_list, DEFAULT_METRICS + ['manifold_dist', 'sparsity'])
     benchmark_df.to_csv('result.csv')
     print(benchmark_df)
 

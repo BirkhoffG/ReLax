@@ -122,7 +122,9 @@ def _proto_cf(
         return jnp.mean(optax.l2_loss(cf, x)) + 0.1 * jnp.mean(jnp.mean(jnp.abs(x - cf)))
 
     def loss_fn_3(cf, data):
-        return jnp.mean(optax.l2_loss(proto(cf), proto(data)))
+        # return jnp.mean(optax.l2_loss(proto(cf), proto(data)))
+        errors = (proto(cf) - proto(data))
+        return jnp.mean(0.5 * (errors)**2)
 
     def loss_fn(
         cf: jnp.DeviceArray, # `cf` shape: (k, 1)
@@ -137,7 +139,7 @@ def _proto_cf(
 
         # print(sampled_label.shape)
         # print(y_prime.shape)
-        return loss_fn_1(cf_y, y_prime) + loss_fn_2(x, cf) \
+        return loss_fn_1(cf_y, y_prime) + lambda_ * loss_fn_2(x, cf) \
             + loss_fn_3(cf, sampled_data_pos) * y_prime_round + loss_fn_3(cf, sampled_data_neg) * (1 - y_prime_round)
 
     @jax.jit
