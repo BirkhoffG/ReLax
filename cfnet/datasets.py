@@ -33,7 +33,7 @@ def _numpy_collate(batch):
 
 class DataLoader:
     def __init__(self,dataset, batch_size=1,
-                shuffle=False, sampler=None,
+                shuffle=False, seed=42, sampler=None,
                 batch_sampler=None, num_workers=0,collate_fn=_numpy_collate,
                 pin_memory=False, drop_last=False,
                 timeout=0, worker_init_fn=None):
@@ -41,6 +41,7 @@ class DataLoader:
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle=shuffle
+        self.seed = seed
         self.sampler=sampler
         self.batch_sampler=batch_sampler
         self.num_workers=num_workers
@@ -50,20 +51,20 @@ class DataLoader:
         self.timeout=timeout
         self.worker_init_fn=worker_init_fn
 
-        self.dataLen = len(dataset)
-        self.keySeq = hk.PRNGSequence(42)
-        self.keySeq.reserve(len(self))
-        self.key = next(self.keySeq)
-        self.indices = jax.numpy.arange(self.dataLen)
+        self.data_len = len(dataset)
+        self.key_seq = hk.PRNGSequence(self.seed)
+        self.key_seq.reserve(len(self))
+        self.key = next(self.key_seq)
+        self.indices = jax.numpy.arange(self.data_len)
         self.pose = 0
     def __len__(self):
         batches = -(len(self.dataset) // -self.batch_size)
         return batches
 
     def __next__(self):
-        if self.pose <= self.dataLen:
+        if self.pose <= self.data_len:
             if self.shuffle:
-                self.key = next(self.keySeq)
+                self.key = next(self.key_seq)
                 self.indices = jax.random.permutation(self.key, self.indices)
             batch_data = [self.dataset[i] for i in self.indices[:self.batch_size]]
             self.indices = self.indices[self.batch_size:]
@@ -71,7 +72,7 @@ class DataLoader:
             return self.collate_fn(batch_data)
         else:
             self.pose = 0
-            self.indices = jax.numpy.arange(self.dataLen)
+            self.indices = jax.numpy.arange(self.data_len)
             raise StopIteration
 
     def __iter__(self):
