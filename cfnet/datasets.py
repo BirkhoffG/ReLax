@@ -51,7 +51,9 @@ class DataLoader:
         self.worker_init_fn=worker_init_fn
 
         self.dataLen = len(dataset)
-        self.key = jax.random.PRNGKey(42)
+        self.keySeq = hk.PRNGSequence(42)
+        self.keySeq.reserve(len(self))
+        self.key = next(self.keySeq)
         self.indices = jax.numpy.arange(self.dataLen)
         self.pose = 0
     def __len__(self):
@@ -61,7 +63,7 @@ class DataLoader:
     def __next__(self):
         if self.pose <= self.dataLen:
             if self.shuffle:
-                (self.key,) = jax.random.split(self.key, 1)
+                self.key = next(self.keySeq)
                 self.indices = jax.random.permutation(self.key, self.indices)
             batch_data = [self.dataset[i] for i in self.indices[:self.batch_size]]
             self.indices = self.indices[self.batch_size:]
