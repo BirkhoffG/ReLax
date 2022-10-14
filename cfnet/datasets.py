@@ -32,19 +32,27 @@ def _numpy_collate(batch):
     return np.array(batch)
 
 class DataLoader:
-    def __init__(self,dataset, batch_size=1,
-                shuffle=False, seed=42, sampler=None,
-                batch_sampler=None, num_workers=0,collate_fn=_numpy_collate,
-                pin_memory=False, drop_last=False,
-                timeout=0, worker_init_fn=None):
-        # Attributes from pytorch data loader
+    def __init__(self,
+                 dataset: Dataset,          # dataset, a Dataset object
+                 batch_size: int=1,         # batch size
+                 shuffle: bool=False,       # if true, dataloader shuffles before sampling each batch
+                 seed: int=42,              # seed for random number generator
+                 sampler=None,
+                 batch_sampler=None,
+                 num_workers=0,
+                 collate_fn=_numpy_collate, # collate function, default is _numpy_collate()
+                 pin_memory=False,
+                 drop_last: bool=False,     # if true, dataloader drops the last batch that is less than the batch size
+                 timeout=0,
+                 worker_init_fn=None
+                 ):
         # Attributes from pytorch data loader (implemented)
-        self.dataset: Dataset = dataset  # dataset, a Dataset object
-        self.batch_size: int = batch_size  # batch size
-        self.shuffle: bool = shuffle  # if true, dataloader shuffles before sampling each batch
-        self.seed: int = seed  # seed for random number generator
-        self.collate_fn = collate_fn  # collate function, default is _numpy_collate()
-        self.drop_last: bool = drop_last  # if true, dataloader drops the last batch that is less than the batch size
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.seed = seed
+        self.collate_fn = collate_fn
+        self.drop_last = drop_last
 
         # Attributes from pytorch data loader (not implemented)
         self.sampler = sampler
