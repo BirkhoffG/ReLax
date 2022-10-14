@@ -52,7 +52,7 @@ class CheckpointManager:
         if self.monitor_metrics is None:
             return
         if self.monitor_metrics not in epoch_logs:
-            raise ValueError('The monitor_metrics is not appropriately configured.')
+            raise ValueError("The monitor_metrics ({}) is not appropriately configured.".format(self.monitor_metrics))
         metric = float(epoch_logs[self.monitor_metrics])
         if steps:
             ckpt_name = f'epoch={epochs}_step={steps}'
