@@ -38,27 +38,34 @@ class DataLoader:
                 pin_memory=False, drop_last=False,
                 timeout=0, worker_init_fn=None):
         # Attributes from pytorch data loader
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.shuffle=shuffle
-        self.seed = seed
-        self.sampler=sampler
-        self.batch_sampler=batch_sampler
-        self.num_workers=num_workers
-        self.collate_fn=collate_fn
-        self.pin_memory=pin_memory
-        self.drop_last=drop_last
-        self.timeout=timeout
-        self.worker_init_fn=worker_init_fn
+        # Attributes from pytorch data loader (implemented)
+        self.dataset: Dataset = dataset  # dataset, a Dataset object
+        self.batch_size: int = batch_size  # batch size
+        self.shuffle: bool = shuffle  # if true, dataloader shuffles before sampling each batch
+        self.seed: int = seed  # seed for random number generator
+        self.collate_fn = collate_fn  # collate function, default is _numpy_collate()
+        self.drop_last: bool = drop_last  # if true, dataloader drops the last batch that is less than the batch size
 
-        self.data_len = len(dataset)
-        self.key_seq = hk.PRNGSequence(self.seed)
-        self.key_seq.reserve(len(self))
-        self.key = next(self.key_seq)
-        self.indices = jax.numpy.arange(self.data_len)
-        self.pose = 0
+        # Attributes from pytorch data loader (not implemented)
+        self.sampler = sampler
+        self.batch_sampler = batch_sampler
+        self.num_workers = num_workers
+        self.pin_memory = pin_memory
+        self.worker_init_fn = worker_init_fn
+        self.timeout = timeout
+
+        self.data_len: int = len(dataset)  # Length of the dataset
+        self.key_seq: hk.PRNGSequence = hk.PRNGSequence(self.seed)  # random number sequence
+        self.key_seq.reserve(len(self))  # generate some random number as key based on the number of batches
+        self.key = next(self.key_seq)  # obtain a random key from the sequence
+        self.indices: jax.numpy.array = jax.numpy.arange(self.data_len)  # available indices in the dataset
+        self.pose: int = 0  # record the current position in the dataset
+
     def __len__(self):
-        batches = -(len(self.dataset) // -self.batch_size)
+        if self.drop_last:
+            batches = len(self.dataset) // self.batch_size  # get the floor of division
+        else:
+            batches = -(len(self.dataset) // -self.batch_size)  # get the ceil of division
         return batches
 
     def __next__(self):
@@ -68,6 +75,10 @@ class DataLoader:
                 self.indices = jax.random.permutation(self.key, self.indices)
             batch_data = [self.dataset[i] for i in self.indices[:self.batch_size]]
             self.indices = self.indices[self.batch_size:]
+            if self.drop_last and len(self.indices)<self.batch_size:
+                self.pose = 0
+                self.indices = jax.numpy.arange(self.data_len)
+                raise StopIteration
             self.pose += self.batch_size
             return self.collate_fn(batch_data)
         else:
@@ -77,7 +88,6 @@ class DataLoader:
 
     def __iter__(self):
         return self
-
 
 
 def find_imutable_idx_list(
