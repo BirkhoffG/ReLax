@@ -4,8 +4,6 @@
 from __future__ import annotations
 from .import_essentials import *
 from sklearn.preprocessing import StandardScaler,MinMaxScaler,OneHotEncoder
-import json
-import os
 from urllib.request import urlretrieve
 
 # %% auto 0
@@ -29,7 +27,7 @@ class Dataset:
 def _numpy_collate(batch):
     if isinstance(batch[0], np.ndarray):
         return np.stack(batch)
-    elif isinstance(batch[0], (tuple,list)):
+    elif isinstance(batch[0], (tuple, list)):
         transposed = zip(*batch)
         return [_numpy_collate(samples) for samples in transposed]
     else:
@@ -145,13 +143,13 @@ class DataModuleConfigs(BaseParser):
 def _data_name2configs(data_name: str):
     with open('../assets/configs/{}.json'.format(data_name)) as json_file:
         data = json.load(json_file)
-        data_configs['data_name']=data_name
-        data_configs['discret_cols']=data['discret_cols']
-        data_configs['continous_cols']=data['continous_cols']
-        data_configs['imutable_cols']=data.get('imutable_cols', [])
-        data_configs['sample_frac']=data.get('sample_frac', [])
-        data_configs['normalizer']=data.get('normalizer', [])
-        data_configs['encoder']=data.get('encoder', [])
+        data_configs['data_name'] = data_name
+        data_configs['discret_cols'] = data['discret_cols']
+        data_configs['continous_cols'] = data['continous_cols']
+        data_configs['imutable_cols'] = data.get('imutable_cols', [])
+        data_configs['sample_frac'] = data.get('sample_frac', [])
+        data_configs['normalizer'] = data.get('normalizer', [])
+        data_configs['encoder'] = data.get('encoder', [])
         data_configs['data_dir'] = _download_data(data_name)
     return data_configs
 
