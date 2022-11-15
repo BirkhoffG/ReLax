@@ -12,7 +12,7 @@ from cfnet.utils import (
     cat_normalize,
     grad_update,
 )
-
+from functools import partial
 
 # %% auto 0
 __all__ = ['VanillaCFConfig', 'VanillaCF']
@@ -26,6 +26,8 @@ def _vanilla_cf(
     lambda_: float,  #  loss = validity_loss + lambda_params * cost
     cat_arrays: List[List[str]],
     cat_idx: int,
+    restarts: int = 0,
+    prng_keys: hk.PRNGSequence = hk.PRNGSequence(31)
 ) -> jnp.DeviceArray:  # return `cf` shape: (k,)
     def loss_fn_1(cf_y: jnp.DeviceArray, y_prime: jnp.DeviceArray):
         return jnp.mean(binary_cross_entropy(y_pred=cf_y, y=y_prime))
@@ -43,15 +45,24 @@ def _vanilla_cf(
         cf_y = pred_fn(cf)
         return loss_fn_1(cf_y, y_prime) + lambda_ * loss_fn_2(x, cf)
 
-    @jax.jit
+    @partial(jax.jit, static_argnames=["opt"])
     def gen_cf_step(
-        x: jnp.DeviceArray, cf: jnp.DeviceArray, opt_state: optax.OptState
+        x: jnp.DeviceArray, cf: jnp.DeviceArray, opt_state: optax.OptState, opt
     ) -> Tuple[jnp.DeviceArray, optax.OptState]:
         cf_grads = jax.grad(loss_fn)(cf, x, pred_fn)
         cf, opt_state = grad_update(cf_grads, cf, opt_state, opt)
         cf = cat_normalize(cf, cat_arrays=cat_arrays, cat_idx=cat_idx, hard=False)
         cf = jnp.clip(cf, 0.0, 1.0)
         return cf, opt_state
+
+    def gen_cf(x: jnp.DeviceArray, lr: float, n_steps: int, key: random.PRNGKey):
+        cf = jnp.array(x, copy=True) \
+            + jax.random.normal(key, shape=x.shape, dtype=x.dtype)
+        opt = optax.adam(lr)
+        opt_state = opt.init(cf)
+        for _ in tqdm(range(n_steps)):
+            cf, opt_state = gen_cf_step(x, cf, opt_state, opt)
+        return cf
 
     x_size = x.shape
     if len(x_size) > 1 and x_size[0] != 1:
@@ -61,21 +72,30 @@ but got `x.shape` = {x.shape}. This method expects a single input instance."""
         )
     if len(x_size) == 1:
         x = x.reshape(1, -1)
-    cf = jnp.array(x, copy=True)
-    opt = optax.rmsprop(lr)
-    opt_state = opt.init(cf)
-    for _ in tqdm(range(n_steps)):
-        cf, opt_state = gen_cf_step(x, cf, opt_state)
+    
+    runs = restarts + 1
+    if runs > 1:
+        # TODO: use `vmap` for acceleration
+        cfs = jnp.concatenate([
+            gen_cf(x, lr, n_steps, next(prng_keys)) for _ in range(runs)
+        ], axis=0) # (n, k)
+        cfs_loss = jnp.array([
+            loss_fn(cf.reshape(1, -1), x, pred_fn) for cf in cfs
+        ])
+        cf = cfs[jnp.argmin(cfs_loss)].reshape(1, -1)
+    else:
+        cf = gen_cf(x, lr, n_steps, next(prng_keys))
 
     cf = cat_normalize(cf, cat_arrays=cat_arrays, cat_idx=cat_idx, hard=True)
     return cf.reshape(x_size)
-
 
 # %% ../../nbs/05_methods.vanilla.ipynb 5
 class VanillaCFConfig(BaseParser):
     n_steps: int = 1000
     lr: float = 0.01
     lambda_: float = 0.01  # loss = validity_loss + lambda_params * cost
+    restarts: int = 0 # if `0`, no restarts
+    seed: int = 31
 
 
 # %% ../../nbs/05_methods.vanilla.ipynb 6
@@ -104,6 +124,8 @@ class VanillaCF(LocalCFExplanationModule):
             lambda_=self.configs.lambda_,  #  loss = validity_loss + lambda_params * cost
             cat_arrays=self.cat_arrays,
             cat_idx=self.cat_idx,
+            restarts=self.configs.restarts,
+            prng_keys=hk.PRNGSequence(self.configs.seed)
         )
 
     @check_cat_info

@@ -26,7 +26,8 @@ t_configs = {
 }
 cf_configs = {
     'n_steps': 1000,
-    'lr': 0.001
+    'lr': 0.001,
+    'restarts': 5
 }
 
 cf_results_df_list = []
