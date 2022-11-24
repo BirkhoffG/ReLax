@@ -157,8 +157,7 @@ class DataLoaderJax(BaseDataLoader):
             if self.shuffle:
                 self.key = next(self.key_seq)
                 self.indices = jax.random.permutation(self.key, self.indices)
-            #batch_data = [self.dataset[i] for i in self.indices[: self.batch_size]]
-            batch_data = self.dataset[self.indices[: self.batch_size].tolist()]
+            batch_data = self.dataset[self.indices[: self.batch_size]]
             batch_data = list(map(list, zip(*batch_data)))
             self.indices = self.indices[self.batch_size :]
             if self.drop_last and len(self.indices) < self.batch_size:
