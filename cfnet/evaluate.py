@@ -381,7 +381,7 @@ def benchmark_cfs(
 ):
     dfs = [
         evaluate_cfs(
-            cf_results=cf_results, metrics=metrics, return_dict=False, return_df=True
+            cf_exp=cf_results, metrics=metrics, return_dict=False, return_df=True
         )
         for cf_results in cf_results_list
     ]
