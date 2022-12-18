@@ -171,12 +171,12 @@ def generate_cf_results_cfnet(
     return generate_cf_explanations(cf_module, dm, pred_fn=None)
 
 
-# %% ../nbs/06_evaluate.ipynb 12
+# %% ../nbs/06_evaluate.ipynb 19
 class BaseEvalMetrics(ABC):
     def __call__(self, cf_explanations: Explanation) -> Any:
         raise NotImplementedError
 
-# %% ../nbs/06_evaluate.ipynb 13
+# %% ../nbs/06_evaluate.ipynb 20
 def _compute_acc(
     input: jnp.DeviceArray, # input dim: [N, k]
     label: jnp.DeviceArray, # label dim: [N] or [N, 1]
@@ -186,13 +186,13 @@ def _compute_acc(
     label = label.reshape(-1, 1)
     return accuracy(y_pred, label).item()
 
-# %% ../nbs/06_evaluate.ipynb 14
+# %% ../nbs/06_evaluate.ipynb 21
 class PredictiveAccuracy(BaseEvalMetrics):
     def __call__(self, cf_explanations: Explanation) -> float:
         X, y = cf_explanations.data_module.test_dataset[:]
         return _compute_acc(X, y, cf_explanations.pred_fn)
 
-# %% ../nbs/06_evaluate.ipynb 15
+# %% ../nbs/06_evaluate.ipynb 22
 def _compute_val(
     input: jnp.DeviceArray, # input dim: [N, k]
     cfs: jnp.DeviceArray, # cfs dim: [N, k]
@@ -203,7 +203,7 @@ def _compute_val(
     cf_y = pred_fn(cfs).reshape(-1, 1).round()
     return accuracy(y_prime, cf_y).item()
 
-# %% ../nbs/06_evaluate.ipynb 16
+# %% ../nbs/06_evaluate.ipynb 23
 class Validity(BaseEvalMetrics):
     def __call__(self, cf_explanations: Explanation) -> float:
         X, _ = cf_explanations.data_module.test_dataset[:]
@@ -211,13 +211,13 @@ class Validity(BaseEvalMetrics):
             X, cf_explanations.cfs, cf_explanations.pred_fn
         )
 
-# %% ../nbs/06_evaluate.ipynb 17
+# %% ../nbs/06_evaluate.ipynb 24
 class Proximity(BaseEvalMetrics):
     def __call__(self, cf_explanations: Explanation) -> float:
         X, _ = cf_explanations.data_module.test_dataset[:]
         return proximity(X, cf_explanations.cfs)
 
-# %% ../nbs/06_evaluate.ipynb 18
+# %% ../nbs/06_evaluate.ipynb 25
 def _compute_spar(
     input: jnp.DeviceArray,
     cfs: jnp.DeviceArray,
@@ -231,13 +231,13 @@ def _compute_spar(
     return cont_sparsity + cat_sparsity
 
 
-# %% ../nbs/06_evaluate.ipynb 19
+# %% ../nbs/06_evaluate.ipynb 26
 class Sparsity(BaseEvalMetrics):
     def __call__(self, cf_explanations: Explanation) -> float:
         X, _ = cf_explanations.data_module.test_dataset[:]
         return _compute_spar(X, cf_explanations.cfs, cf_explanations.cat_idx)
 
-# %% ../nbs/06_evaluate.ipynb 20
+# %% ../nbs/06_evaluate.ipynb 27
 def _compute_manifold_dist(
     input: jnp.DeviceArray,
     cfs: jnp.DeviceArray,
@@ -249,7 +249,7 @@ def _compute_manifold_dist(
     nearest_dist, nearest_points = knn.kneighbors(cfs, 1, return_distance=True)
     return jnp.mean(nearest_dist).item()
 
-# %% ../nbs/06_evaluate.ipynb 21
+# %% ../nbs/06_evaluate.ipynb 28
 class ManifoldDist(BaseEvalMetrics):
     def __init__(self, n_neighbors: int = 1, p: int = 2):
         self.n_neighbors = n_neighbors
@@ -261,12 +261,12 @@ class ManifoldDist(BaseEvalMetrics):
             X, cf_explanations.cfs, self.n_neighbors, self.p
         )
 
-# %% ../nbs/06_evaluate.ipynb 22
+# %% ../nbs/06_evaluate.ipynb 29
 class Runtime(BaseEvalMetrics):
     def __call__(self, cf_explanations: Explanation) -> float:
         return cf_explanations.total_time
 
-# %% ../nbs/06_evaluate.ipynb 24
+# %% ../nbs/06_evaluate.ipynb 31
 def _create_second_order_cfs(cf_results: CFExplanationResults, threshold: float = 2.0):
     X, y = cf_results.data_module.test_dataset[:]
     cfs = cf_results.cfs
@@ -313,7 +313,7 @@ def compute_so_sparsity(cf_results: CFExplanationResults, threshold: float = 2.0
     return compute_sparsity(cf_results_so)
 
 
-# %% ../nbs/06_evaluate.ipynb 26
+# %% ../nbs/06_evaluate.ipynb 33
 METRICS = dict(
     acc=PredictiveAccuracy(),
     accuracy=PredictiveAccuracy(),
@@ -328,7 +328,7 @@ METRICS = dict(
 
 DEFAULT_METRICS = ["acc", "validity", "proximity"]
 
-# %% ../nbs/06_evaluate.ipynb 27
+# %% ../nbs/06_evaluate.ipynb 34
 def _get_metric(metric: str | callable, cf_exp: Explanation):
     if isinstance(metric, str):
         try:
@@ -341,7 +341,7 @@ def _get_metric(metric: str | callable, cf_exp: Explanation):
         raise ValueError(f"{type(metric).__name__} is not supported as a metric.")
     return res
 
-# %% ../nbs/06_evaluate.ipynb 28
+# %% ../nbs/06_evaluate.ipynb 35
 def evaluate_cfs(
     cf_exp: Explanation, # CF Explanations
     metrics: Iterable[str | callable] = None, # A list of Metrics. Can be `str` or a subclass of `BaseEvalMetrics`
@@ -365,7 +365,7 @@ def evaluate_cfs(
         return result_df if return_df else result_dict
 
 
-# %% ../nbs/06_evaluate.ipynb 29
+# %% ../nbs/06_evaluate.ipynb 36
 def benchmark_cfs(
     cf_results_list: Iterable[CFExplanationResults],
     metrics: Optional[Iterable[str]] = None,
