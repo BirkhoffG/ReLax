@@ -4,7 +4,7 @@
 from __future__ import annotations
 from ..import_essentials import *
 from ..utils import load_json, validate_configs, cat_normalize
-from .loader import Dataset, DataLoader
+from .loader import Dataset, DataLoader, _supported_backends
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
 from sklearn.base import TransformerMixin
 from urllib.request import urlretrieve
@@ -12,7 +12,7 @@ from urllib.request import urlretrieve
 # %% auto 0
 __all__ = ['BaseDataModule', 'find_imutable_idx_list', 'TabularDataModuleConfigs', 'TabularDataModule', 'samples', 'load_data']
 
-# %% ../../nbs/01_data.module.ipynb 4
+# %% ../../nbs/01_data.module.ipynb 5
 class BaseDataModule(ABC):
     """DataModule Interface"""
 
@@ -172,21 +172,37 @@ def _init_scalar_encoder(
     return dict(scalar=scalar, encoder=encoder)
 
 
-# %% ../../nbs/01_data.module.ipynb 17
+# %% ../../nbs/01_data.module.ipynb 16
 class TabularDataModuleConfigs(BaseParser):
-    """Config of `TabularDataModule`."""
+    """Configurator of `TabularDataModule`."""
 
-    data_dir: str 
-    data_name: str
-    discret_cols: List[str] = []
-    continous_cols: List[str] = []
-    imutable_cols: List[str] = []
-    normalizer: Optional[Any] = None
-    encoder: Optional[Any] = None
-    sample_frac: Optional[float] = None
-    backend: str = 'jax'
+    data_dir: str = Field(description="The directory of dataset.")
+    data_name: str = Field(description="The name of `TabularDataModule`.")
+    continous_cols: List[str] = Field(
+        [], description="Continuous features/columns in the data."
+    )
+    discret_cols: List[str] = Field(
+        [], description="Categorical features/columns in the data."
+    )
+    imutable_cols: List[str] = Field(
+        [], description="Immutable features/columns in the data."
+    )
+    normalizer: Optional[Any] = Field(
+        None, description="Fitted scalar for continuous features."
+    )
+    encoder: Optional[Any] = Field(
+        None, description="Fitted encoder for categorical features."
+    )
+    sample_frac: Optional[float] = Field(
+        None, description="Sample fraction of the data. Default to use the entire data.", 
+        ge=0., le=1.0
+    )
+    backend: str = Field(
+        "jax", description=f"`Dataloader` backend. Currently supports: {_supported_backends()}"
+    )
 
-# %% ../../nbs/01_data.module.ipynb 19
+
+# %% ../../nbs/01_data.module.ipynb 20
 class TabularDataModule(BaseDataModule):
     """DataModule for tabular data"""
     cont_scalar = None # scalar for normalizing continuous features
@@ -314,7 +330,7 @@ class TabularDataModule(BaseDataModule):
         cf: jnp.DeviceArray, # Unnormalized counterfactuals
         hard: bool = False # Apply hard constraints or not
     ) -> jnp.DeviceArray:
-        """TODO: ADD DOCS"""
+        """Apply categorical normalization and immutability constraints"""
         cat_arrays = self.cat_encoder.categories_ \
             if self._configs.discret_cols else []
         cf = cat_normalize(
@@ -328,13 +344,13 @@ class TabularDataModule(BaseDataModule):
         return cf
 
 
-# %% ../../nbs/01_data.module.ipynb 36
+# %% ../../nbs/01_data.module.ipynb 39
 def samples(datamodule: BaseDataModule, frac: float = 1.0): 
     X, y = datamodule.train_dataset[:]
     size = int(len(X) * frac)
     return X[:size], y[:size]
 
-# %% ../../nbs/01_data.module.ipynb 41
+# %% ../../nbs/01_data.module.ipynb 44
 DEFAULT_DATA_CONFIGS = {
     'adult': {
         'data' :'assets/data/s_adult.csv',
@@ -350,16 +366,17 @@ DEFAULT_DATA_CONFIGS = {
     }
 }
 
-# %% ../../nbs/01_data.module.ipynb 42
+# %% ../../nbs/01_data.module.ipynb 45
 def _validate_dataname(data_name: str):
     if data_name not in DEFAULT_DATA_CONFIGS.keys():
         raise ValueError(f'`data_name` must be one of {DEFAULT_DATA_CONFIGS.keys()}, '
             f'but got data_name={data_name}.')
 
-# %% ../../nbs/01_data.module.ipynb 43
+# %% ../../nbs/01_data.module.ipynb 46
 def load_data(
-    data_name: str, return_config: bool = False
-) -> TabularDataModule:
+    data_name: str, # The name of data
+    return_config: bool = False # Return `data_config `or not
+) -> TabularDataModule | Tuple[TabularDataModule, TabularDataModuleConfigs]: 
     _validate_dataname(data_name)
 
     # get data/config urls
@@ -386,6 +403,7 @@ def load_data(
     config = load_json(conf_path)['data_configs']
     config['data_dir'] = str(data_path)
 
+    config = TabularDataModuleConfigs(**config)
     data_module = TabularDataModule(config)
 
     if return_config:
