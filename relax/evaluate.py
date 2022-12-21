@@ -172,6 +172,7 @@ def generate_cf_results_relax(
 
 # %% ../nbs/06_evaluate.ipynb 19
 class BaseEvalMetrics(ABC):
+    """Base evaluation metrics class."""
     def __call__(self, cf_explanations: Explanation) -> Any:
         raise NotImplementedError
 
@@ -214,7 +215,7 @@ class Validity(BaseEvalMetrics):
 
 # %% ../nbs/06_evaluate.ipynb 24
 class Proximity(BaseEvalMetrics):
-    """Compute L1 norm distance between input datasets and CF examples. divided by the number of features."""
+    """Compute L1 norm distance between input datasets and CF examples divided by the number of features."""
     def __call__(self, cf_explanations: Explanation) -> float:
         X, _ = cf_explanations.data_module.test_dataset[:]
         return proximity(X, cf_explanations.cfs)
