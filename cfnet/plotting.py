@@ -5,21 +5,24 @@ from __future__ import annotations
 from .import_essentials import *
 import seaborn as sns
 import matplotlib.pyplot as plt
+from .evaluate import Explanation
 
 # %% auto 0
 __all__ = ['swarmplot', 'stripplot', 'barplot']
 
 # %% ../nbs/07_plotting.ipynb 4
 def swarmplot(
-        X, # Factual data
-        cfs, # Counterfactual examples
-        dm: TabularDataModule, # Data module, containing info for columns
-        plot_name: str,  # The name for the plot
-        sample_num: int,  # The number of sample for the plot
-        seed: int,  # Seed for PRG for random sampling
-        separate_class: bool, # Whether to separate the data based on the classifier result
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray], # Predict function
+        cf_exp: Explanation, # CF Explanations
+        plot_name: str = "Swarm Plot",  # The name for the plot
+        sample_num: int = 100,  # The number of sample for the plot
+        seed: int = 42,  # Seed for PRG for random sampling
+        separate_class: bool = True, # Whether to separate the data based on the classifier result
     ):
+
+    X = cf_exp.X
+    cfs = cf_exp.cfs
+    dm = cf_exp.data_module
+    pred_fn = cf_exp.pred_fn
 
     # Compute the difference of continuous data between factual and counterfactual
     X_inverse = dm.normalizer.inverse_transform(X[:, :dm.cat_idx])
@@ -107,15 +110,17 @@ def swarmplot(
 
 
 def stripplot(
-        X, # Factual data
-        cfs, # Counterfactual examples
-        dm: TabularDataModule, # Data module, containing info for columns
+        cf_exp: Explanation, # CF Explanations
         plot_name: str,  # The name for the plot
         sample_num: int,  # The number of sample for the plot
         seed: int,  # Seed for PRG for random sampling
         separate_class: bool, # Whether to separate the data based on the classifier result
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray], # Predict function
     ):
+
+    X = cf_exp.X
+    cfs = cf_exp.cfs
+    dm = cf_exp.data_module
+    pred_fn = cf_exp.pred_fn
 
     # Obtain discrete data
     X_dis = X[:,dm.cat_idx:]
