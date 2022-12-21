@@ -170,10 +170,6 @@ backend2dataloader = {
 }
 
 # %% ../../nbs/01_data.loader.ipynb 17
-def _supported_backends():
-    return [back for back, dl_cls in backend2dataloader.items() if dl_cls is not None ]
-
-# %% ../../nbs/01_data.loader.ipynb 18
 def _dispatch_dataloader(
     backend: str # dataloader backend
 ) -> BaseDataLoader:
@@ -189,7 +185,7 @@ def _dispatch_dataloader(
     return dataloader_cls
 
 
-# %% ../../nbs/01_data.loader.ipynb 20
+# %% ../../nbs/01_data.loader.ipynb 19
 class DataLoader(BaseDataLoader):
     """Main Dataloader class to load Numpy data batches"""
     def __init__(
