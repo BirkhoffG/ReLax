@@ -10,7 +10,7 @@ from sklearn.base import TransformerMixin
 from urllib.request import urlretrieve
 
 # %% auto 0
-__all__ = ['BaseDataModule', 'find_imutable_idx_list', 'TabularDataModuleConfigs', 'TabularDataModule', 'samples', 'load_data']
+__all__ = ['BaseDataModule', 'find_imutable_idx_list', 'TabularDataModuleConfigs', 'TabularDataModule', 'sample', 'load_data']
 
 # %% ../../nbs/01_data.module.ipynb 5
 class BaseDataModule(ABC):
@@ -299,7 +299,7 @@ class TabularDataModule(BaseDataModule):
             self.cat_encoder, data, self._configs.discret_cols
         )
         X = np.concatenate((X_cont, X_cat), axis=1)
-        y = data.iloc[:, -1].values
+        y = data.iloc[:, -1:].to_numpy()
         
         return X, y
 
@@ -345,7 +345,7 @@ class TabularDataModule(BaseDataModule):
 
 
 # %% ../../nbs/01_data.module.ipynb 39
-def samples(datamodule: BaseDataModule, frac: float = 1.0): 
+def sample(datamodule: BaseDataModule, frac: float = 1.0): 
     X, y = datamodule.train_dataset[:]
     size = int(len(X) * frac)
     return X[:size], y[:size]
