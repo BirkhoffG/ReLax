@@ -375,7 +375,8 @@ def _validate_dataname(data_name: str):
 # %% ../../nbs/01_data.module.ipynb 46
 def load_data(
     data_name: str, # The name of data
-    return_config: bool = False # Return `data_config `or not
+    return_config: bool = False, # Return `data_config `or not
+    data_configs: dict = None # Data configs to override default configuration
 ) -> TabularDataModule | Tuple[TabularDataModule, TabularDataModuleConfigs]: 
     _validate_dataname(data_name)
 
@@ -402,6 +403,9 @@ def load_data(
     # read config
     config = load_json(conf_path)['data_configs']
     config['data_dir'] = str(data_path)
+
+    if not (data_configs is None):
+        config.update(data_configs)
 
     config = TabularDataModuleConfigs(**config)
     data_module = TabularDataModule(config)
