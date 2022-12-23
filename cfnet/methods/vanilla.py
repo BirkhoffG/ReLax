@@ -66,7 +66,7 @@ but got `x.shape` = {x.shape}. This method expects a single input instance."""
 # %% ../../nbs/05a_methods.vanilla.ipynb 5
 class VanillaCFConfig(BaseParser):
     n_steps: int = 1000
-    lr: float = 0.01
+    lr: float = 0.001
     lambda_: float = 0.01  # loss = validity_loss + lambda_ * cost
 
 
@@ -76,12 +76,11 @@ class VanillaCF(BaseCFModule):
 
     def __init__(
         self,
-        configs: dict | VanillaCFConfig,
-        data_module: Optional[TabularDataModule] = None,
+        configs: dict | VanillaCFConfig = None
     ):
+        if configs is None:
+            configs = VanillaCFConfig()
         self.configs = validate_configs(configs, VanillaCFConfig)
-        if data_module:
-            self.update_cat_info(data_module)
 
     def generate_cf(
         self,
