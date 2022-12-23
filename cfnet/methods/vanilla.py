@@ -4,15 +4,8 @@
 from __future__ import annotations
 from ..import_essentials import *
 from .base import BaseCFModule
-from ..datasets import TabularDataModule
-from cfnet.utils import (
-    check_cat_info,
-    validate_configs,
-    binary_cross_entropy,
-    cat_normalize,
-    grad_update,
-)
-
+from ..data import TabularDataModule
+from ..utils import validate_configs, binary_cross_entropy, grad_update
 
 # %% auto 0
 __all__ = ['VanillaCFConfig', 'VanillaCF']
@@ -24,8 +17,7 @@ def _vanilla_cf(
     n_steps: int,
     lr: float,  # learning rate for each `cf` optimization step
     lambda_: float,  #  loss = validity_loss + lambda_params * cost
-    cat_arrays: List[List[str]],
-    cat_idx: int,
+    apply_fn: Callable
 ) -> jnp.DeviceArray:  # return `cf` shape: (k,)
     def loss_fn_1(cf_y: jnp.DeviceArray, y_prime: jnp.DeviceArray):
         return jnp.mean(binary_cross_entropy(y_pred=cf_y, y=y_prime))
@@ -49,7 +41,7 @@ def _vanilla_cf(
     ) -> Tuple[jnp.DeviceArray, optax.OptState]:
         cf_grads = jax.grad(loss_fn)(cf, x, pred_fn)
         cf, opt_state = grad_update(cf_grads, cf, opt_state, opt)
-        cf = cat_normalize(cf, cat_arrays=cat_arrays, cat_idx=cat_idx, hard=False)
+        cf = apply_fn(x, cf, hard=False)
         cf = jnp.clip(cf, 0.0, 1.0)
         return cf, opt_state
 
@@ -67,7 +59,7 @@ but got `x.shape` = {x.shape}. This method expects a single input instance."""
     for _ in tqdm(range(n_steps)):
         cf, opt_state = gen_cf_step(x, cf, opt_state)
 
-    cf = cat_normalize(cf, cat_arrays=cat_arrays, cat_idx=cat_idx, hard=True)
+    cf = apply_fn(x, cf, hard=False)
     return cf.reshape(x_size)
 
 
@@ -102,11 +94,9 @@ class VanillaCF(BaseCFModule):
             n_steps=self.configs.n_steps,
             lr=self.configs.lr,  # learning rate for each `cf` optimization step
             lambda_=self.configs.lambda_,  #  loss = validity_loss + lambda_params * cost
-            cat_arrays=self.cat_arrays,
-            cat_idx=self.cat_idx,
+            apply_fn=self.data_module.apply_constraints
         )
 
-    @check_cat_info
     def generate_cfs(
         self,
         X: jnp.DeviceArray,  # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
