@@ -11,7 +11,6 @@ from .methods.counternet import CounterNet
 from copy import deepcopy
 from sklearn.neighbors import NearestNeighbors
 
-
 # %% auto 0
 __all__ = ['CFExplanationResults', 'METRICS', 'DEFAULT_METRICS', 'Explanation', 'generate_cf_explanations',
            'generate_cf_results_local_exp', 'generate_cf_results_relax', 'BaseEvalMetrics', 'PredictiveAccuracy',

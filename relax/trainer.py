@@ -13,21 +13,38 @@ from ._ckpt_manager import CheckpointManager
 
 # %% ../nbs/04_learning.ipynb 4
 class TrainingConfigs(BaseParser):
-    n_epochs: int
-    batch_size: int
-    monitor_metrics: Optional[str] = None
-    seed: int = 42
-    log_dir: str = "log"
-    logger_name: str = "debug"
-    log_on_step: bool = False
-    max_n_checkpoints: int = 3
+    """Configurator of 'train_model'."""
+    n_epochs: int = Field(
+        None, description="Number of epochs."
+    )
+    batch_size: int = Field(
+        None, description="Batch size."
+    )
+    monitor_metrics: Optional[str] = Field(
+        None, description="Monitor metrics used to evaluate the training result after each epoch."
+    )
+    seed: int = Field(
+        42, description="Seed for generating random number."
+    )
+    log_dir: str = Field(
+        "log", description="The name for the directory that holds logged data during training."
+    )
+    logger_name: str = Field(
+        "debug", description="The name for the directory that holds logged data during training under log directory."
+    )
+    log_on_step: bool = Field(
+        False, description="Log on step."
+    )
+    max_n_checkpoints: int = Field(
+        3, description="Max number of checkpoints."
+    )
 
     @property
     def PRNGSequence(self):
         return hk.PRNGSequence(self.seed)
 
 
-# %% ../nbs/04_learning.ipynb 5
+# %% ../nbs/04_learning.ipynb 6
 def train_model_with_states(
     training_module: BaseTrainingModule,
     params: hk.Params,
@@ -94,14 +111,15 @@ def train_model_with_states(
     return params, opt_state
 
 
-# %% ../nbs/04_learning.ipynb 6
+# %% ../nbs/04_learning.ipynb 7
 def train_model(
-    training_module: BaseTrainingModule,
-    data_module: TabularDataModule,
-    t_configs: Union[Dict[str, Any], TrainingConfigs],
+    training_module: BaseTrainingModule, # Training module
+    data_module: TabularDataModule, # Data module
+    t_configs: Union[Dict[str, Any], TrainingConfigs], # Training configurator
 ) -> Tuple[hk.Params, optax.OptState]:
+    """Train machine learning classifier"""
     t_configs = validate_configs(t_configs, TrainingConfigs)
-    keys = t_configs.PRNGSequence
+    keys = t_configs.PRNGSequence 
     params, opt_state = training_module.init_net_opt(data_module, next(keys))
     return train_model_with_states(
         training_module=training_module,

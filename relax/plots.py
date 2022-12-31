@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from .evaluate import Explanation
 from .data import TabularDataModule
 
-
 # %% auto 0
 __all__ = ['summary_plot', 'individual_plot']
 
