@@ -33,10 +33,10 @@ class TrainingConfigs(BaseParser):
         "debug", description="The name for the directory that holds logged data during training under log directory."
     )
     log_on_step: bool = Field(
-        False, description="Log on step."
+        False, description="Log the evaluate metrics at the current step."
     )
     max_n_checkpoints: int = Field(
-        3, description="Max number of checkpoints."
+        3, description="Maximum number of checkpoints stored."
     )
 
     @property

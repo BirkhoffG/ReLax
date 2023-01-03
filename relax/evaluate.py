@@ -187,6 +187,7 @@ def _compute_acc(
 
 # %% ../nbs/06_evaluate.ipynb 21
 class PredictiveAccuracy(BaseEvalMetrics):
+    """Compute the accuracy of the predict function."""
     def __call__(self, cf_explanations: Explanation) -> float:
         X, y = cf_explanations.data_module.test_dataset[:]
         return _compute_acc(X, y, cf_explanations.pred_fn)
@@ -204,6 +205,7 @@ def _compute_val(
 
 # %% ../nbs/06_evaluate.ipynb 23
 class Validity(BaseEvalMetrics):
+    """"""
     def __call__(self, cf_explanations: Explanation) -> float:
         X, _ = cf_explanations.data_module.test_dataset[:]
         return _compute_val(
