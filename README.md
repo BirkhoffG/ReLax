@@ -59,4 +59,4 @@ guidelines](https://github.com/google/jax#installation).
 
 ## An Example of using `RELax`
 
-See [How to use RELax](tutorials/getting_started.ipynb).
+See [Getting Started with ReLax](tutorials/getting_started.ipynb).
