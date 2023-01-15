@@ -92,7 +92,8 @@ class PredictiveModel(hk.Module):
             x, is_training
         )
         x = hk.Linear(1)(x)
-        x = sigmoid(x)
+        x = jax.nn.sigmoid(x)
+        # x = sigmoid(x)
         return x
 
 

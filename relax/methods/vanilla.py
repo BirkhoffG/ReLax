@@ -19,7 +19,8 @@ def _vanilla_cf(
     apply_fn: Callable
 ) -> jnp.DeviceArray:  # return `cf` shape: (k,)
     def loss_fn_1(cf_y: jnp.DeviceArray, y_prime: jnp.DeviceArray):
-        return jnp.mean(binary_cross_entropy(y_pred=cf_y, y=y_prime))
+        return jnp.mean(binary_cross_entropy(preds=cf_y, labels=y_prime))
+        # return jnp.mean(binary_cross_entropy(y_pred=cf_y, y=y_prime))
 
     def loss_fn_2(x: jnp.DeviceArray, cf: jnp.DeviceArray):
         return jnp.mean(optax.l2_loss(cf, x))
@@ -41,7 +42,7 @@ def _vanilla_cf(
         cf_grads = jax.grad(loss_fn)(cf, x, pred_fn)
         cf, opt_state = grad_update(cf_grads, cf, opt_state, opt)
         cf = apply_fn(x, cf, hard=False)
-        cf = jnp.clip(cf, 0.0, 1.0)
+        # cf = jnp.clip(cf, 0.0, 1.0)
         return cf, opt_state
 
     x_size = x.shape
