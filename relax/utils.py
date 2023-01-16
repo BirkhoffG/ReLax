@@ -8,9 +8,9 @@ from fastcore.basics import AttrDict
 from nbdev.showdoc import BasicMarkdownRenderer
 
 # %% auto 0
-__all__ = ['validate_configs', 'show_doc', 'cat_normalize', 'make_model', 'init_net_opt', 'grad_update', 'check_cat_info',
-           'load_json', 'add_to_class', 'binary_cross_entropy', 'sigmoid', 'accuracy', 'dist', 'proximity',
-           'get_config']
+__all__ = ['validate_configs', 'show_doc', 'cat_normalize', 'make_model', 'make_hk_module', 'init_net_opt', 'grad_update',
+           'check_cat_info', 'load_json', 'add_to_class', 'binary_cross_entropy', 'sigmoid', 'accuracy', 'dist',
+           'proximity', 'get_config']
 
 # %% ../nbs/00_utils.ipynb 5
 def validate_configs(
@@ -164,7 +164,7 @@ def add_to_class(cls):
     return wrapper
 
 
-# %% ../nbs/00_utils.ipynb 41
+# %% ../nbs/00_utils.ipynb 42
 def binary_cross_entropy(
     preds: jnp.DeviceArray, # The predicted values
     labels: jnp.DeviceArray # The ground-truth labels
@@ -184,7 +184,7 @@ def sigmoid(x):
     # https://stackoverflow.com/a/68293931
     return 0.5 * (jnp.tanh(x / 2) + 1)
 
-# %% ../nbs/00_utils.ipynb 44
+# %% ../nbs/00_utils.ipynb 45
 def accuracy(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.DeviceArray:
     y_true, y_pred = map(jnp.round, (y_true, y_pred))
     return jnp.mean(jnp.equal(y_true, y_pred))
@@ -198,7 +198,7 @@ def dist(x: jnp.ndarray, cf: jnp.ndarray, ord: int = 2) -> jnp.DeviceArray:
 def proximity(x: jnp.ndarray, cf: jnp.ndarray) -> jnp.DeviceArray:
     return dist(x, cf, ord=1)
 
-# %% ../nbs/00_utils.ipynb 47
+# %% ../nbs/00_utils.ipynb 48
 @dataclass
 class Config:
     rng_reserve_size: int
@@ -210,6 +210,6 @@ class Config:
 
 main_config = Config.default()
 
-# %% ../nbs/00_utils.ipynb 48
+# %% ../nbs/00_utils.ipynb 49
 def get_config() -> Config: 
     return main_config
