@@ -128,6 +128,12 @@ def _check_cols(data: pd.DataFrame, configs: TabularDataModuleConfigs) -> pd.Dat
 def _process_data(
     df: pd.DataFrame | None, configs: TabularDataModuleConfigs
 ) -> pd.DataFrame:
+    """
+    This function does the following:
+        * Check and load data.
+        * Select first `sample_frac` of the data.
+        * Check and load only specified columns.
+    """
     if df is None:
         df = pd.read_csv(configs.data_dir)
     elif isinstance(df, pd.DataFrame):
@@ -221,7 +227,7 @@ class TabularDataModuleConfigs(BaseParser):
         ge=0., le=1.0
     )
     backend: str = Field(
-        "jax", description=f"`Dataloader` backend. Currently supports: {_supported_backends()}"
+        "jax", description=f"`Dataloader` backend. Currently supports: {DataloaderBackends.supported()}"
     )
 
 
