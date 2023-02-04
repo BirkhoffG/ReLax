@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
 from sklearn.base import TransformerMixin
 from urllib.request import urlretrieve
 from .loader import Dataset, ArrayDataset, DataLoader, DataloaderBackends
+from copy import deepcopy
 
 # %% auto 0
 __all__ = ['BaseDataModule', 'find_imutable_idx_list', 'TabularDataModuleConfigs', 'TabularDataModule', 'sample', 'load_data']
@@ -127,6 +128,12 @@ def _check_cols(data: pd.DataFrame, configs: TabularDataModuleConfigs) -> pd.Dat
 def _process_data(
     df: pd.DataFrame | None, configs: TabularDataModuleConfigs
 ) -> pd.DataFrame:
+    """
+    This function does the following:
+        * Check and load data.
+        * Select first `sample_frac` of the data.
+        * Check and load only specified columns.
+    """
     if df is None:
         df = pd.read_csv(configs.data_dir)
     elif isinstance(df, pd.DataFrame):
@@ -134,6 +141,10 @@ def _process_data(
     else:
         raise ValueError(f"{type(df).__name__} is not supported as an input type for `TabularDataModule`.")
 
+    if configs.sample_frac is not None:
+        sample_size = int(len(df) * configs.sample_frac)
+        df = df.iloc[:sample_size]
+    
     df = _check_cols(df, configs)
     return df
 
@@ -216,7 +227,7 @@ class TabularDataModuleConfigs(BaseParser):
         ge=0., le=1.0
     )
     backend: str = Field(
-        "jax", description=f"`Dataloader` backend. Currently supports: {_supported_backends()}"
+        "jax", description=f"`Dataloader` backend. Currently supports: {DataloaderBackends.supported()}"
     )
 
 
@@ -260,9 +271,9 @@ class TabularDataModule(BaseDataModule):
         train_X, test_X, train_y, test_y = map(
              lambda x: x.astype(float), train_test_tuple
          )
-        if self._configs.sample_frac:
-            train_size = int(len(train_X) * self._configs.sample_frac)
-            train_X, train_y = train_X[:train_size], train_y[:train_size]
+        # if self._configs.sample_frac:
+        #     train_size = int(len(train_X) * self._configs.sample_frac)
+        #     train_X, train_y = train_X[:train_size], train_y[:train_size]
         
         self._train_dataset = ArrayDataset(train_X, train_y)
         self._val_dataset = ArrayDataset(test_X, test_y)
@@ -387,13 +398,13 @@ class TabularDataModule(BaseDataModule):
         return reg_loss
 
 
-# %% ../../nbs/01_data.module.ipynb 41
+# %% ../../nbs/01_data.module.ipynb 43
 def sample(datamodule: BaseDataModule, frac: float = 1.0): 
     X, y = datamodule.train_dataset[:]
     size = int(len(X) * frac)
     return X[:size], y[:size]
 
-# %% ../../nbs/01_data.module.ipynb 46
+# %% ../../nbs/01_data.module.ipynb 47
 DEFAULT_DATA_CONFIGS = {
     'adult': {
         'data' :'assets/data/s_adult.csv',
@@ -409,13 +420,13 @@ DEFAULT_DATA_CONFIGS = {
     }
 }
 
-# %% ../../nbs/01_data.module.ipynb 47
+# %% ../../nbs/01_data.module.ipynb 48
 def _validate_dataname(data_name: str):
     if data_name not in DEFAULT_DATA_CONFIGS.keys():
         raise ValueError(f'`data_name` must be one of {DEFAULT_DATA_CONFIGS.keys()}, '
             f'but got data_name={data_name}.')
 
-# %% ../../nbs/01_data.module.ipynb 48
+# %% ../../nbs/01_data.module.ipynb 49
 def load_data(
     data_name: str, # The name of data
     return_config: bool = False, # Return `data_config `or not
