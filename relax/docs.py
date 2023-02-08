@@ -47,9 +47,9 @@ class ParserMarkdownRenderer(BasicMarkdownRenderer):
         self.dm.dm = _docment_parser(sym)
 
 # %% ../nbs/00_docs.ipynb 6
-def _italic(s: str): return f'*{s}*' if s.strip() else s
+def _italic(s: str): return f'<em>{s}</em>' if s.strip() else s
 
-def _bold(s: str): return f'**{s}**' if s.strip() else s
+def _bold(s: str): return f'<b>{s}</b>' if s.strip() else s
 
 # %% ../nbs/00_docs.ipynb 7
 def _show_param(param):
@@ -77,7 +77,7 @@ def _inner_list2mdlist(l: list):
     else: param_anno = f"`{param_anno}`"
     # default value
     if param_default == inspect._empty: param_default = None
-    else: param_default = f"*default={param_default}*"
+    else: param_default = _italic(f"default={param_default}")
 
     mdoc = ""
     if param_anno and param_default:
@@ -138,9 +138,25 @@ class CalloutDocument():
 
 # %% ../nbs/00_docs.ipynb 10
 class CustomizedMarkdownRenderer(ShowDocRenderer):
+    """Displaying documents of functions, classes, `haiku.module`, and `BaseParser`."""
+    
     def __init__(self, sym, name:str|None=None, title_level:int=3):
         super().__init__(sym, name, title_level)
         self.isclass = inspect.isclass(sym)
+        self._check_sym(sym)
+
+    def _check_sym(self, sym):
+       
+        if self.isclass:
+            # extract annotations for pydantic models
+            if issubclass(sym, BaseParser):
+                self.dm.dm = _docment_parser(sym)
+            # extract annotations for hk.Module
+            elif issubclass(sym, hk.Module):
+                _sym = sym.__init__
+                try: self.sig = signature_ex(_sym, eval_str=True)
+                except (ValueError,TypeError): self.sig = None
+                self.dm = DocmentTbl(_sym)
 
     def _repr_markdown_(self):
         doc = '---\n\n'
@@ -150,25 +166,24 @@ class CustomizedMarkdownRenderer(ShowDocRenderer):
         if _look_up: 
             module_dir = _look_up[1].replace('.py', '').replace('/', '.') + '.'
         else:
-            module_dir = None
+            module_dir = ""
         
         if src: 
             link = _ext_link(src, 'source', 'style="float:right; font-size:smaller"') + '\n\n'
         else:
             link = ''
+        doc += link
         h = '#'*self.title_level
-        doc += f'{h} {str(self.nm).upper()} {link}\n\n'
+        doc += f'{h} {str(self.nm).upper()}\n\n'
         # if self.isclass: doc += '> *class* '
         # else: doc += '> '
         if self.isclass: doc += '::: {.doc-sig}\n\n CLASS '
         else: doc += '::: {.doc-sig}\n\n '
-        sig = f"{module_dir}{_bold(self.nm)} *{_fmt_sig(self.sig)}*\n\n:::"
+        sig = f"{module_dir}{_bold(self.nm)} {_italic(_fmt_sig(self.sig))}\n\n:::"
         doc += f'{sig}'
         if self.docs: doc += f"\n\n{self.docs}"
         # if self.dm.has_docment: doc += f"\n\n{_show_params_return(self.dm)}"
         if self.dm.has_docment: doc += f"\n\n{CalloutDocument(self.dm)}"
 
         return doc
-
-    # __repr__=_repr_markdown_
 
