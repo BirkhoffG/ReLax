@@ -226,6 +226,7 @@ class TabularDataModule(BaseDataModule):
     """DataModule for tabular data"""
     cont_scalar = None # scalar for normalizing continuous features
     cat_encoder = None # encoder for encoding categorical features
+    __initialized = False
 
     def __init__(
         self, 
@@ -271,6 +272,19 @@ class TabularDataModule(BaseDataModule):
         self._train_dataset = ArrayDataset(train_X, train_y)
         self._val_dataset = ArrayDataset(test_X, test_y)
         self._test_dataset = self.val_dataset
+
+        self.__initialized = True
+
+    def __setattr__(self, attr: str, val: Any) -> None:
+        if self.__initialized and attr in (
+            '_data', 'cat_idx', '_imutable_idx_list', '_cat_arrays',
+            '_train_dataset', '_val_dataset', '_test_dataset',
+            'cont_scalar', 'cat_encoder'
+        ):
+            raise ValueError(f'{attr} attribute should not be set after '
+                             f'{self.__class__.__name__} is initialized')
+
+        super().__setattr__(attr, val)
 
     @property
     def data_name(self) -> str: 
