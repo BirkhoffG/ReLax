@@ -279,7 +279,7 @@ def _create_synthetic_data(
     # sample labels from class probabilities in predictions
     uniform_rv = np.random.rand(endogenous_variables.shape[0], 1)
     labels = uniform_rv < predictions
-    labels = pd.DataFrame(data=labels, columns={"label"})
+    labels = pd.DataFrame(data=labels, columns=["label"])
 
     df_endogenous = pd.concat([endogenous_variables, labels], axis=1).astype("float64")
     df_exogenous = pd.concat([exogenous_variables], axis=1).astype("float64")
