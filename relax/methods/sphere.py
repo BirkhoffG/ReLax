@@ -66,14 +66,13 @@ def _growing_spheres(
     p_norm: int, # Norm
     apply_fn: Callable # Apply immutable constraints
 ):
-    
+    @jit
     def cond_fn(state):
         candidate_cf, count, _ = state
-        # TODO: check candidate_cf is not empty
-        
-        return (jnp.all(jnp.isinf(candidate_cf))) & (count < n_steps)
+        return (jnp.any(jnp.isinf(candidate_cf))) & (count < n_steps)
         # return (not candidate_cf) & (count < n_steps)
     
+    @jit
     def body_fn(state):
         candidate_cf, count, rng_key = state
         rng_key, subkey_1, subkey_2 = jrand.split(rng_key, num=3)
@@ -100,14 +99,20 @@ def _growing_spheres(
         indices = jnp.where(candidate_preds != y_pred, 1, 0).astype(bool)
 
         # candidates = candidates[indices]
-        candidates = jnp.where(indices.reshape(-1, 1), candidates, jnp.empty_like(candidates))
+        # candidates = jnp.where(indices.reshape(-1, 1), 
+        candidates = jnp.where(indices.reshape(-1, 1), 
+                               candidates, jnp.ones_like(candidates) * jnp.inf)
         # dist = dist[indices]
-        dist = jnp.where(indices.reshape(-1, 1), dist, jnp.empty_like(dist))
+        dist = jnp.where(indices.reshape(-1, 1), dist, jnp.ones_like(dist) * jnp.inf)
 
-        if len(candidates) > 0:
-            # Find the closest counterfactual
-            closest_idx = dist.argmin()
-            candidate_cf = candidates[closest_idx].reshape(1, -1)
+        # if len(candidates) > 0:
+        closest_idx = dist.argmin()
+        candidate_cf = candidates[closest_idx].reshape(1, -1)
+
+        # if jnp.any(jnp.logical_not(jnp.isinf(candidates))):
+        #     # Find the closest counterfactual
+        #     closest_idx = dist.argmin()
+        #     candidate_cf = candidates[closest_idx].reshape(1, -1)
 
         return candidate_cf, count + 1, rng_key
     
@@ -126,6 +131,8 @@ def _growing_spheres(
     count = 0
     state = (candidate_cf, count, rng_key)
     candidate_cf, _, _ = lax.while_loop(cond_fn, body_fn, state)
+    # if `inf` is found, return the original input
+    candidate_cf = jnp.where(jnp.isinf(candidate_cf), x, candidate_cf)
     return candidate_cf
 
 # %% ../../nbs/05e_sphere.ipynb 7
@@ -158,9 +165,10 @@ class GrowingSphere(BaseCFModule):
     def generate_cf(
         self,
         x: Array,
+        rng_key: jrand.PRNGKey,
         pred_fn: Callable,
     ):
-        rng_key = jrand.PRNGKey(self.configs.seed)
+        # rng_key = jrand.PRNGKey(self.configs.seed)
         cat_idx = self.data_module.cat_idx
         apply_immutable_partial = partial(
             apply_immutable, immutable_idx=self.data_module._imutable_idx_list)
@@ -183,7 +191,8 @@ class GrowingSphere(BaseCFModule):
         X: Array, 
         pred_fn: Callable = None
     ) -> jnp.ndarray:
-        
-        generate_cf_partial = partial(self.generate_cf, pred_fn=pred_fn)
-        cfs = jax.vmap(generate_cf_partial)(X)
+        rng_keys = jrand.split(jrand.PRNGKey(self.configs.seed), X.shape[0])
+        generate_cf_partial = jit(partial(self.generate_cf, pred_fn=pred_fn))
+        cfs = jax.vmap(generate_cf_partial)(X, rng_keys)
+        # cfs = generate_cf_partial(X[0], rng_keys[0])
         return cfs
