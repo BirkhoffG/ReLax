@@ -9,7 +9,6 @@ from ..module import MLP, BaseTrainingModule
 from ..data import *
 from ..trainer import train_model, TrainingConfigs
 
-
 # %% auto 0
 __all__ = ['CCHVAEConfigs', 'CHVAE', 'CCHVAE']
 
@@ -151,6 +150,106 @@ class CHVAE(BaseTrainingModule):
         loss = self.loss(params, rng_key, batch[0])
         self.log_dict({'val/loss': loss.item()})
 
+
+# %% ../../nbs/05f_cchvae.ipynb 7
+def _hyper_sphere_coordindates(
+    rng_key: jrand.PRNGKey, # Random number generator key
+    x: Array, # Input instance with only continuous features. Shape: (1, n_features)
+    n_samples: int,
+    high: float, # Upper bound
+    low: float, # Lower bound
+    p_norm: int = 2 # Norm
+):
+    key_1, key_2 = jrand.split(rng_key)
+    delta = jrand.normal(key_1, shape=(n_samples, x.shape[-1]))
+    dist = jrand.normal(key_2, shape=(n_samples,)) * (high - low) + low
+    norm_p = jnp.linalg.norm(delta, ord=p_norm, axis=1)
+    d_norm = jnp.divide(dist, norm_p).reshape(-1, 1)  # rescale/normalize factor
+    delta = jnp.multiply(delta, d_norm)
+    candidates = x + delta
+    return candidates
+
+# %% ../../nbs/05f_cchvae.ipynb 8
+def _cchvae_generate(
+    x: Array,
+    rng_key: random.PRNGKey,
+    pred_fn: Callable,
+    max_steps: int,
+    n_search_samples: int,
+    step_size: float,
+    cchvae_module: CHVAE,
+    cchvae_params: Tuple[hk.Params, hk.Params],
+    apply_fn: Callable,
+):
+    @jit
+    def cond_fn(state):
+        count, cf, _ = state
+        return jnp.logical_and(count < max_steps, jnp.array_equal(x, cf))
+    
+    @jit
+    def body_fn(state):
+        count, candidate_cf, rng = state
+        rng_key, subkey_1, subkey_2 = jrand.split(rng, num=3)
+        low, high = step_size * count, step_size * (count + 1)
+        # STEP 1 -- SAMPLE POINTS on hyper sphere around instance
+        latent_neighbors = _hyper_sphere_coordindates(
+            subkey_1, z_rep, n_search_samples, high=high, low=low, p_norm=1
+        )
+        x_ce, _ = cchvae_module.decode(cchvae_params[1], subkey_2, latent_neighbors)
+        x_ce = apply_fn(x, x_ce.reshape(1, -1), hard=True)
+        
+        # STEP 2 -- COMPUTE l1 norms
+        distances = jnp.abs(x_ce - x).sum(axis=1)
+
+        # STEP 3 -- SELECT POINT with MINIMUM l1 norm
+        y_candidates = pred_fn(x_ce).round().reshape(-1)
+        indices = jnp.where(y_candidates != y_pred, 1, 0).astype(bool)
+        distances = jnp.where(indices, distances, jnp.inf)
+        
+        candidate_cf = lax.cond(
+            jnp.any(indices),
+            lambda _: x_ce[jnp.argmin(distances)].reshape(1, -1),
+            lambda _: candidate_cf,
+            None
+        )
+
+        count += 1
+        return count, candidate_cf, rng_key
+
+    x_size = x.shape
+    if len(x_size) > 1 and x_size[0] != 1:
+        raise ValueError(
+            f"Invalid Input Shape: Require `x.shape` = (1, k) or (k, ), "
+            f"but got `x.shape` = {x.shape}. This method expects a single input instance."
+        )
+    if len(x_size) == 1:
+        x = x.reshape(1, -1)
+    
+    y_pred = pred_fn(x).round().reshape(-1)
+    z, _ = cchvae_module.encode(cchvae_params[0], rng_key, x)
+    # z_rep = jnp.repeat(z.reshape(1, -1), n_search_samples, axis=0)
+    z_rep = z.reshape(1, -1)
+    rng_key, _ = jrand.split(rng_key)
+    state = (0, x, rng_key) # (count, candidate_cf, rng_key)
+    count, candidate_cf, rng_key = jax.lax.while_loop(cond_fn, body_fn, state)
+    # while cond_fn(state):
+    #     count, candidate_cf, rng_key = body_fn(state)
+    # print(count)
+    return candidate_cf
+
+# %% ../../nbs/05f_cchvae.ipynb 9
+class CCHVAEConfigs(BaseParser):
+    enc_sizes: List[int] = Field(
+        [20, 16, 14, 12], description="Encoder hidden sizes"
+    ) 
+    dec_sizes: List[int] = Field(
+        [12, 14, 16, 20], description="Decoder hidden sizes"
+    )
+    encoded_size: int = Field(5, description="Encoded size")
+    lr: float = Field(0.001, description="Learning rate")
+    max_steps: int = Field(1000, description="Max steps")
+    n_search_samples = Field(300, description="Number of generated candidate counterfactuals.")
+    step_size: float = Field(0.1, description="Step size")
 
 # %% ../../nbs/05f_cchvae.ipynb 10
 class CCHVAE(BaseCFModule, BaseParametricCFModule):
