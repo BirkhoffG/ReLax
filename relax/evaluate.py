@@ -215,6 +215,14 @@ class Validity(BaseEvalMetrics):
             X, cf_explanations.cfs, cf_explanations.pred_fn
         )
 
+# %% ../nbs/06_evaluate.ipynb 26
+def _compute_proximity(
+    inputs: jnp.DeviceArray, # input dim: [N, k]
+    cfs: jnp.DeviceArray, # cfs dim: [N, k]
+):
+    prox = jnp.linalg.norm(inputs - cfs, ord=1, axis=1).mean()
+    return prox.item()
+
 # %% ../nbs/06_evaluate.ipynb 28
 class Proximity(BaseEvalMetrics):
     """Compute L1 norm distance between input datasets and CF examples divided by the number of features."""
