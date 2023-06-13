@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.361">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="DataModule for training parametric models, generating and benchmarking CF explanations.">
+
+<title>ReLax - Data Module</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css">
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="ReLax - Data Module">
+<meta property="og:description" content="DataModule for training parametric models, generating and benchmarking CF explanations.">
+<meta property="og:site-name" content="ReLax">
+<meta name="twitter:title" content="ReLax - Data Module">
+<meta name="twitter:description" content="DataModule for training parametric models, generating and benchmarking CF explanations.">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar floating nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">ReLax</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="./index.html" rel="" target="" aria-current="page">
+ <span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./tutorials/getting_started.html" rel="" target="">
+ <span class="menu-text">Tutorial</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./tutorials/contribution.html" rel="" target="">
+ <span class="menu-text">Contribute</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-help" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Help</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-help">    
+        <li>
+    <a class="dropdown-item" href="https://github.com/birkhoffg/ReLax/issues" rel="" target=""><i class="bi bi-bug" role="img">
+</i> 
+ <span class="dropdown-text">Report an Issue</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/birkhoffg/ReLax/discussions/" rel="" target=""><i class="bi bi-chat-right-text" role="img">
+</i> 
+ <span class="dropdown-text">Ask a Question</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/birkhoffg/ReLax" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+      <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./utils.html">API</a></li><li class="breadcrumb-item"><a href="./data.loader.html">Data</a></li><li class="breadcrumb-item"><a href="./data.module.html">Data Module</a></li></ol></nav>
+      <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+      </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReLax</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text">Tutorials</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./tutorials/install.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Installation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./tutorials/getting_started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./tutorials/contribution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Contribute</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text">API</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./utils.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Utils</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docs</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text">Data</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth2 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./data.loader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dataloader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./data.module.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Data Module</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./data.scm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Causal Graphical Models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./training_module.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Module</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./learning.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Training</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./logger.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Logger</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ckpt_manager.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checkpoint Manager</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./evaluate.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evaluate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plotting</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="false">
+ <span class="menu-text">Methods</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods.base.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interfaces</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/vanilla.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Vanilla CF</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/diverse.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Diverse CF</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/prototype.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Proto CF</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/counternet.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">CounterNet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/sphere.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Growing Sphere</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/cchvae.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">CCHVAE</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/07_vaecf.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">VAECF</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methods/clue.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">CLUE</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#data-module-interfaces" id="toc-data-module-interfaces" class="nav-link active" data-scroll-target="#data-module-interfaces">Data Module Interfaces</a>
+  <ul>
+  <li><a href="#basedatamodule" id="toc-basedatamodule" class="nav-link" data-scroll-target="#basedatamodule">BASEDATAMODULE</a></li>
+  </ul></li>
+  <li><a href="#tabula-data-module" id="toc-tabula-data-module" class="nav-link" data-scroll-target="#tabula-data-module">Tabula Data Module</a>
+  <ul>
+  <li><a href="#transformermixintype" id="toc-transformermixintype" class="nav-link" data-scroll-target="#transformermixintype">TRANSFORMERMIXINTYPE</a></li>
+  <li><a href="#tabulardatamoduleconfigs" id="toc-tabulardatamoduleconfigs" class="nav-link" data-scroll-target="#tabulardatamoduleconfigs">TABULARDATAMODULECONFIGS</a></li>
+  <li><a href="#tabulardatamodule" id="toc-tabulardatamodule" class="nav-link" data-scroll-target="#tabulardatamodule">TABULARDATAMODULE</a></li>
+  <li><a href="#tabulardatamodule.data" id="toc-tabulardatamodule.data" class="nav-link" data-scroll-target="#tabulardatamodule.data">TABULARDATAMODULE.DATA</a></li>
+  <li><a href="#tabulardatamodule.transform" id="toc-tabulardatamodule.transform" class="nav-link" data-scroll-target="#tabulardatamodule.transform">TABULARDATAMODULE.TRANSFORM</a></li>
+  <li><a href="#tabulardatamodule.inverse_transform" id="toc-tabulardatamodule.inverse_transform" class="nav-link" data-scroll-target="#tabulardatamodule.inverse_transform">TABULARDATAMODULE.INVERSE_TRANSFORM</a></li>
+  <li><a href="#tabulardatamodule.apply_constraints" id="toc-tabulardatamodule.apply_constraints" class="nav-link" data-scroll-target="#tabulardatamodule.apply_constraints">TABULARDATAMODULE.APPLY_CONSTRAINTS</a></li>
+  <li><a href="#tabulardatamodule.apply_regularization" id="toc-tabulardatamodule.apply_regularization" class="nav-link" data-scroll-target="#tabulardatamodule.apply_regularization">TABULARDATAMODULE.APPLY_REGULARIZATION</a></li>
+  <li><a href="#sample" id="toc-sample" class="nav-link" data-scroll-target="#sample">SAMPLE</a></li>
+  </ul></li>
+  <li><a href="#load-data" id="toc-load-data" class="nav-link" data-scroll-target="#load-data">Load Data</a>
+  <ul>
+  <li><a href="#load_data" id="toc-load_data" class="nav-link" data-scroll-target="#load_data">LOAD_DATA</a>
+  <ul class="collapse">
+  <li><a href="#supported-datasets" id="toc-supported-datasets" class="nav-link" data-scroll-target="#supported-datasets">Supported Datasets</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.com/birkhoffg/relax/tree/master/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Data Module</h1>
+</div>
+
+<div>
+  <div class="description">
+    <code>DataModule</code> for training parametric models, generating and benchmarking CF explanations.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<section id="data-module-interfaces" class="level2">
+<h2 class="anchored" data-anchor-id="data-module-interfaces">Data Module Interfaces</h2>
+<p>High-level interfaces for <code>DataModule</code>. Docs to be added.</p>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L19" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="basedatamodule" class="level3">
+<h3 class="anchored" data-anchor-id="basedatamodule">BASEDATAMODULE</h3>
+<div class="doc-sig">
+<p>CLASS relax.data.module.<b>BaseDataModule</b> <em>()</em></p>
+</div>
+<p>DataModule Interface</p>
+</section>
+</section>
+<section id="tabula-data-module" class="level2">
+<h2 class="anchored" data-anchor-id="tabula-data-module">Tabula Data Module</h2>
+<p><code>DataModule</code> for processing tabular data.</p>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L110" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="transformermixintype" class="level3">
+<h3 class="anchored" data-anchor-id="transformermixintype">TRANSFORMERMIXINTYPE</h3>
+<div class="doc-sig">
+<p>CLASS relax.data.module.<b>TransformerMixinType</b> <em>()</em></p>
+</div>
+<p>Mixin class for all transformers in scikit-learn.</p>
+<p>If :term:<code>get_feature_names_out</code> is defined, then <code>BaseEstimator</code> will automatically wrap <code>transform</code> and <code>fit_transform</code> to follow the <code>set_output</code> API. See the :ref:<code>developer_api_set_output</code> for details.</p>
+<p>:class:<code>base.OneToOneFeatureMixin</code> and :class:<code>base.ClassNamePrefixFeaturesOutMixin</code> are helpful mixins for defining :term:<code>get_feature_names_out</code>.</p>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L134" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamoduleconfigs" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamoduleconfigs">TABULARDATAMODULECONFIGS</h3>
+<div class="doc-sig">
+<p>CLASS relax.data.module.<b>TabularDataModuleConfigs</b> <em>(data_dir, data_name, continous_cols=[], discret_cols=[], imutable_cols=[], normalizer=None, encoder=None, sample_frac=None, backend=‘jax’)</em></p>
+</div>
+<p>Configurator of <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a>.</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>data_dir</b> (<code>str</code>) – The directory of dataset.</li>
+<li><b>data_name</b> (<code>str</code>) – The name of <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a>.</li>
+<li><b>continous_cols</b> (<code>List[str]</code>, <em>default=[]</em>) – Continuous features/columns in the data.</li>
+<li><b>discret_cols</b> (<code>List[str]</code>, <em>default=[]</em>) – Categorical features/columns in the data.</li>
+<li><b>imutable_cols</b> (<code>List[str]</code>, <em>default=[]</em>) – Immutable features/columns in the data.</li>
+<li><b>normalizer</b> (<code>Optional[TransformerMixinType]</code>) – Sklearn scalar for continuous features. Can be unfitted, fitted, or None. If not fitted, the <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a> will fit using the training data. If fitted, no fitting will be applied. If <code>None</code>, no transformation will be applied. Default to <code>MinMaxScaler()</code>.</li>
+<li><b>encoder</b> (<code>Optional[TransformerMixinType]</code>) – Fitted encoder for categorical features. Can be unfitted, fitted, or None. If not fitted, the <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a> will fit using the training data. If fitted, no fitting will be applied. If <code>None</code>, no transformation will be applied. Default to <code>OneHotEncoder(sparse=False)</code>.</li>
+<li><b>sample_frac</b> (<code>Optional[float]</code>) – Sample fraction of the data. Default to use the entire data.</li>
+<li><b>backend</b> (<code>str</code>, <em>default=jax</em>) – <code>Dataloader</code> backend. Currently supports: [‘jax’, ‘pytorch’]</li>
+</ul>
+</div>
+</div>
+<p>An example configurator of the <strong>adult</strong> dataset:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>configs_dict <span class="op">=</span> {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"data_dir"</span>: <span class="st">"assets/data/s_adult.csv"</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"data_name"</span>: <span class="st">"adult"</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"continous_cols"</span>: [<span class="st">"age"</span>, <span class="st">"hours_per_week"</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"discret_cols"</span>: [<span class="st">"workclass"</span>, <span class="st">"education"</span>, <span class="st">"marital_status"</span>,<span class="st">"occupation"</span>],</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"imutable_cols"</span>: [<span class="st">"age"</span>, <span class="st">"workclass"</span>, <span class="st">"marital_status"</span>],</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"normalizer"</span>: MinMaxScaler(),</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"encoder"</span>: OneHotEncoder(sparse<span class="op">=</span><span class="va">False</span>),</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sample_frac"</span>: <span class="fl">0.1</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"backend"</span>: <span class="st">"jax"</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>configs <span class="op">=</span> TabularDataModuleConfigs(<span class="op">**</span>configs_dict)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L271" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamodule" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamodule">TABULARDATAMODULE</h3>
+<div class="doc-sig">
+<p>CLASS relax.data.module.<b>TabularDataModule</b> <em>(data_config, data=None)</em></p>
+</div>
+<p>DataModule for tabular data</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>data_config</b> (<code>dict | TabularDataModuleConfigs</code>) – Configurator of <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a></li>
+<li><b>data</b> (<code>pd.DataFrame</code>, <em>default=None</em>) – Data in <code>pd.DataFrame</code>. If <code>data</code> is <code>None</code>, the DataModule will load data from <code>data_dir</code>.</li>
+</ul>
+</div>
+</div>
+<p>To load <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a> from <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamoduleconfigs"><code>TabularDataModuleConfigs</code></a>,</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>configs <span class="op">=</span> TabularDataModuleConfigs(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    data_name<span class="op">=</span><span class="st">'adult'</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    data_dir<span class="op">=</span><span class="st">'assets/data/s_adult.csv'</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    continous_cols<span class="op">=</span>[<span class="st">'age'</span>, <span class="st">'hours_per_week'</span>],</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    discret_cols<span class="op">=</span>[<span class="st">'workclass'</span>, <span class="st">'education'</span>, <span class="st">'marital_status'</span>, <span class="st">'occupation'</span>],</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    imutable_cols<span class="op">=</span>[<span class="st">'age'</span>, <span class="st">'workclass'</span>, <span class="st">'marital_status'</span>],</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    sample_frac<span class="op">=</span><span class="fl">0.1</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>dm <span class="op">=</span> TabularDataModule(configs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can also explicitly pass a <code>pd.DataFrame</code> to <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a>. In this case, <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule"><code>TabularDataModule</code></a> will use the passed <code>pd.DataFrame</code>, instead of loading data from <code>data_dir</code> in <a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamoduleconfigs"><code>TabularDataModuleConfigs</code></a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'assets/data/s_adult.csv'</span>)[:<span class="dv">1000</span>]</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>dm <span class="op">=</span> TabularDataModule(configs, data<span class="op">=</span>df)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">len</span>(dm.data) <span class="op">==</span> <span class="dv">1000</span> <span class="co"># dm contains `df`</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L340" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamodule.data" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamodule.data">TABULARDATAMODULE.DATA</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>TabularDataModule.data</b> <em>()</em></p>
+</div>
+<p>Loaded data in <code>pd.DataFrame</code>.</p>
+<p><code>TabulaDataModule</code> loads either a csv file (specified in <code>data_dir</code> in <code>data_config</code>), or directly passes a DataFrame (specified as <code>data</code>). Either way, this data needs to satisfy following conditions:</p>
+<ul>
+<li>It requires the <strong>target column</strong> (i.e., the labels) to be the <strong>last</strong> column of the DataFrame, and the rest columns are <strong>features</strong>. This <strong>target column</strong> needs to be binary-valued (i.e., it is either <code>0</code> or <code>1</code>).
+<ul>
+<li>In the belowing example, <strong>income</strong> is the <strong>target column</strong>, and the rest columns are features.</li>
+</ul></li>
+<li>It requires <code>continous_cols</code> and <code>discret_cols</code> in <code>data_config</code> to be subsets of <code>data.columns</code>.</li>
+<li>It only use columns specified in <code>continous_cols</code> and <code>discret_cols</code>.
+<ul>
+<li>It loads <code>continous_cols</code> first, then <code>discret_cols</code>.</li>
+</ul></li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dm.data.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">hours_per_week</th>
+<th data-quarto-table-cell-role="th">workclass</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">marital_status</th>
+<th data-quarto-table-cell-role="th">occupation</th>
+<th data-quarto-table-cell-role="th">income</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>42.0</td>
+<td>45.0</td>
+<td>Private</td>
+<td>HS-grad</td>
+<td>Married</td>
+<td>Blue-Collar</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>32.0</td>
+<td>40.0</td>
+<td>Self-Employed</td>
+<td>Some-college</td>
+<td>Married</td>
+<td>Blue-Collar</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>35.0</td>
+<td>40.0</td>
+<td>Private</td>
+<td>Assoc</td>
+<td>Single</td>
+<td>White-Collar</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>36.0</td>
+<td>40.0</td>
+<td>Private</td>
+<td>HS-grad</td>
+<td>Single</td>
+<td>Blue-Collar</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>57.0</td>
+<td>35.0</td>
+<td>Private</td>
+<td>School</td>
+<td>Married</td>
+<td>Service</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L379" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamodule.transform" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamodule.transform">TABULARDATAMODULE.TRANSFORM</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>TabularDataModule.transform</b> <em>(data)</em></p>
+</div>
+<p>Transform data into numerical representations.</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>data</b> (<code>pd.DataFrame</code>) – Data to be transformed to <code>numpy.ndarray</code></li>
+</ul>
+</div>
+</div>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Returns:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>    (<code>Tuple[np.ndarray, np.ndarray]</code>) – Return <code>(X, y)</code></p>
+</div>
+</div>
+<p>By default, we transform <em>continuous features</em> via <code>MinMaxScaler</code>, and <em>discrete features</em> via <code>OneHotEncoding</code>.</p>
+<p>A tabular data point <span class="math inline">x</span> is encoded as <span class="math display">x = [\underbrace{x_{0}, x_{1}, ..., x_{m}}_{\text{cont features}},
+\underbrace{x_{m+1}^{c=1},..., x_{m+p}^{c=1}}_{\text{cat feature} (1)}, ...,
+\underbrace{x_{k-q}^{c=i},..., x_{k}^{^{c=i}}}_{\text{cat feature} (i)}]</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> dm.data.head()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>X, y <span class="op">=</span> dm.transform(df)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">isinstance</span>(X, np.ndarray)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">isinstance</span>(y, np.ndarray)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> y.shape <span class="op">==</span> (<span class="bu">len</span>(X), <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>&lt;string&gt;:1: DeprecationWarning: jax.numpy.DeviceArray is deprecated. Use jax.Array.</code></pre>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L396" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamodule.inverse_transform" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamodule.inverse_transform">TABULARDATAMODULE.INVERSE_TRANSFORM</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>TabularDataModule.inverse_transform</b> <em>(x, y=None)</em></p>
+</div>
+<p>Scaled back into <code>pd.DataFrame</code>.</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>x</b> (<code>jnp.DeviceArray</code>) – The transformed input to be scaled back</li>
+<li><b>y</b> (<code>jnp.DeviceArray</code>, <em>default=None</em>) – The transformed label to be scaled back. If <code>None</code>, the target columns will not be scaled back.</li>
+</ul>
+</div>
+</div>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Returns:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>    (<code>pd.DataFrame</code>) – Transformed <code>pd.DataFrame</code>.</p>
+</div>
+</div>
+<p><a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule.inverse_transform"><code>TabularDataModule.inverse_transform</code></a> scales numerical representations back to the original DataFrame.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>dm.inverse_transform(X, y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">hours_per_week</th>
+<th data-quarto-table-cell-role="th">workclass</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">marital_status</th>
+<th data-quarto-table-cell-role="th">occupation</th>
+<th data-quarto-table-cell-role="th">income</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>42.0</td>
+<td>45.0</td>
+<td>Private</td>
+<td>HS-grad</td>
+<td>Married</td>
+<td>Blue-Collar</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>32.0</td>
+<td>40.0</td>
+<td>Self-Employed</td>
+<td>Some-college</td>
+<td>Married</td>
+<td>Blue-Collar</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>35.0</td>
+<td>40.0</td>
+<td>Private</td>
+<td>Assoc</td>
+<td>Single</td>
+<td>White-Collar</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>36.0</td>
+<td>40.0</td>
+<td>Private</td>
+<td>HS-grad</td>
+<td>Single</td>
+<td>Blue-Collar</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>57.0</td>
+<td>35.0</td>
+<td>Private</td>
+<td>School</td>
+<td>Married</td>
+<td>Service</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>If <code>y</code> is not passed, it will only scale back <code>X</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>dm.inverse_transform(X)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">hours_per_week</th>
+<th data-quarto-table-cell-role="th">workclass</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">marital_status</th>
+<th data-quarto-table-cell-role="th">occupation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>42.0</td>
+<td>45.0</td>
+<td>Private</td>
+<td>HS-grad</td>
+<td>Married</td>
+<td>Blue-Collar</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>32.0</td>
+<td>40.0</td>
+<td>Self-Employed</td>
+<td>Some-college</td>
+<td>Married</td>
+<td>Blue-Collar</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>35.0</td>
+<td>40.0</td>
+<td>Private</td>
+<td>Assoc</td>
+<td>Single</td>
+<td>White-Collar</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>36.0</td>
+<td>40.0</td>
+<td>Private</td>
+<td>HS-grad</td>
+<td>Single</td>
+<td>Blue-Collar</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>57.0</td>
+<td>35.0</td>
+<td>Private</td>
+<td>School</td>
+<td>Married</td>
+<td>Service</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<pre><code>&lt;string&gt;:1: DeprecationWarning: jax.numpy.DeviceArray is deprecated. Use jax.Array.</code></pre>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L417" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamodule.apply_constraints" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamodule.apply_constraints">TABULARDATAMODULE.APPLY_CONSTRAINTS</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>TabularDataModule.apply_constraints</b> <em>(x, cf, hard=False)</em></p>
+</div>
+<p>Apply categorical normalization and immutability constraints</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>x</b> (<code>jnp.DeviceArray</code>) – input</li>
+<li><b>cf</b> (<code>jnp.DeviceArray</code>) – Unnormalized counterfactuals</li>
+<li><b>hard</b> (<code>bool</code>, <em>default=False</em>) – Apply hard constraints or not</li>
+</ul>
+</div>
+</div>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Returns:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>    (<code>jnp.DeviceArray</code>)</p>
+</div>
+</div>
+<p><a href="https://birkhoffg.github.io/ReLax/data.module.html#tabulardatamodule.apply_constraints"><code>TabularDataModule.apply_constraints</code></a> does two things:</p>
+<ol type="1">
+<li>It ensures that generated counterfactuals respect the one-hot encoding format (i.e., <span class="math inline">\sum_{p \to q} x^{c=i}_{p} = 1</span>).</li>
+<li>It ensures the immutability constraints (i.e., immutable features defined in <code>imutable_cols</code> will not be changed).</li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>x, y <span class="op">=</span> <span class="bu">next</span>(<span class="bu">iter</span>(dm.test_dataloader(batch_size<span class="op">=</span><span class="dv">128</span>)))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># unnormalized counterfactuals</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>cf <span class="op">=</span> random.normal(</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    random.PRNGKey(<span class="dv">0</span>), x.shape</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># normalized counterfactuals</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>cf_normed <span class="op">=</span> dm.apply_constraints(x, cf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>&lt;string&gt;:1: DeprecationWarning: jax.numpy.DeviceArray is deprecated. Use jax.Array.</code></pre>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L434" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="tabulardatamodule.apply_regularization" class="level3">
+<h3 class="anchored" data-anchor-id="tabulardatamodule.apply_regularization">TABULARDATAMODULE.APPLY_REGULARIZATION</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>TabularDataModule.apply_regularization</b> <em>(x, cf)</em></p>
+</div>
+<p>Apply categorical constraints by adding regularization terms</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>x</b> (<code>jnp.DeviceArray</code>) – Input</li>
+<li><b>cf</b> (<code>jnp.DeviceArray</code>) – Unnormalized counterfactuals</li>
+</ul>
+</div>
+</div>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Returns:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>    (<code>float</code>) – Return regularization loss</p>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>x, y <span class="op">=</span> <span class="bu">next</span>(<span class="bu">iter</span>(dm.test_dataloader(batch_size<span class="op">=</span><span class="dv">128</span>)))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># unnormalized counterfactuals</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>cf <span class="op">=</span> random.normal(</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    random.PRNGKey(<span class="dv">0</span>), x.shape</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># normalized counterfactuals</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>cf_normed <span class="op">=</span> dm.apply_constraints(x, cf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L452" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="sample" class="level3">
+<h3 class="anchored" data-anchor-id="sample">SAMPLE</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>sample</b> <em>(datamodule, frac=1.0)</em></p>
+</div>
+</section>
+</section>
+<section id="load-data" class="level2">
+<h2 class="anchored" data-anchor-id="load-data">Load Data</h2>
+<hr>
+<p><a href="https://github.com/birkhoffg/relax/tree/master/blob/master/relax/data/module.py#L538" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="load_data" class="level3">
+<h3 class="anchored" data-anchor-id="load_data">LOAD_DATA</h3>
+<div class="doc-sig">
+<p>relax.data.module.<b>load_data</b> <em>(data_name, return_config=False, data_configs=None)</em></p>
+</div>
+<p>High-level util function for loading <code>data</code> and <code>data_config</code>.</p>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Parameters:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><b>data_name</b> (<code>str</code>) – The name of data</li>
+<li><b>return_config</b> (<code>bool</code>, <em>default=False</em>) – Return <code>data_config</code>or not</li>
+<li><b>data_configs</b> (<code>dict</code>, <em>default=None</em>) – Data configs to override default configuration</li>
+</ul>
+</div>
+</div>
+<div id="docs" class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Returns:
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>    (<code>TabularDataModule | Tuple[TabularDataModule, TabularDataModuleConfigs]</code>)</p>
+</div>
+</div>
+<p><a href="https://birkhoffg.github.io/ReLax/data.module.html#load_data"><code>load_data</code></a> easily loads example datasets by passing the <code>data_name</code>. For example, you can load the <a href="https://archive.ics.uci.edu/ml/datasets/adult">adult</a> as:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>dm <span class="op">=</span> load_data(data_name <span class="op">=</span> <span class="st">'adult'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Underlying, <a href="https://birkhoffg.github.io/ReLax/data.module.html#load_data"><code>load_data</code></a> loads the default <code>data_configs</code>. To access this <code>data_configs</code>,</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>dm, data_configs <span class="op">=</span> load_data(data_name <span class="op">=</span> <span class="st">'adult'</span>, return_config<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>If you want to override some of the data configs, you can pass it as an auxillary argumenet in <code>data_configs</code>. For example, if you want to use only 10% of the data, you can</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>dm <span class="op">=</span> load_data(</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    data_name <span class="op">=</span> <span class="st">'adult'</span>, data_configs<span class="op">=</span>{<span class="st">'sample_frac'</span>: <span class="fl">0.1</span>}</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="supported-datasets" class="level4">
+<h4 class="anchored" data-anchor-id="supported-datasets">Supported Datasets</h4>
+<p><a href="https://birkhoffg.github.io/ReLax/data.module.html#load_data"><code>load_data</code></a> currently supports following datasets:</p>
+<div class="cell">
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"># Cont Features</th>
+<th data-quarto-table-cell-role="th"># Cat Features</th>
+<th data-quarto-table-cell-role="th"># of Data Points</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">adult</td>
+<td>2</td>
+<td>6</td>
+<td>32561</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">heloc</td>
+<td>21</td>
+<td>2</td>
+<td>10459</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">oulad</td>
+<td>23</td>
+<td>8</td>
+<td>32593</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">credit</td>
+<td>20</td>
+<td>3</td>
+<td>30000</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">cancer</td>
+<td>30</td>
+<td>0</td>
+<td>569</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">student_performance</td>
+<td>2</td>
+<td>14</td>
+<td>649</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">titanic</td>
+<td>2</td>
+<td>24</td>
+<td>891</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">german</td>
+<td>7</td>
+<td>13</td>
+<td>1000</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">spam</td>
+<td>57</td>
+<td>0</td>
+<td>4601</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">ozone</td>
+<td>72</td>
+<td>0</td>
+<td>2534</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">qsar</td>
+<td>38</td>
+<td>3</td>
+<td>1055</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">bioresponse</td>
+<td>1776</td>
+<td>0</td>
+<td>3751</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">churn</td>
+<td>3</td>
+<td>16</td>
+<td>7043</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">road</td>
+<td>29</td>
+<td>3</td>
+<td>111762</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>DEFAULT_DATA_CONFIGS.keys()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre><code>dict_keys(['adult', 'heloc', 'oulad', 'credit', 'cancer', 'student_performance', 'titanic', 'german', 'spam', 'ozone', 'qsar', 'bioresponse', 'churn', 'road'])</code></pre>
+</div>
+</div>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
