@@ -26,9 +26,9 @@ class Explanation:
     """Generated CF Explanations class."""
     cf_name: str  # cf method's name
     data_module: TabularDataModule  # data module
-    cfs: jnp.DeviceArray  # generated cf explanation of `X`
+    cfs: jax.Array  # generated cf explanation of `X`
     total_time: float  # total runtime
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray]  # predict function
+    pred_fn: Callable[[jax.Array], jax.Array]  # predict function
     dataset_name: str = str()  # dataset name
     X: jnp.ndarray = None  # input
     y: jnp.ndarray = None  # label
@@ -228,7 +228,7 @@ class StrategyFactory(object):
 def _validate_configs(
     cf_module: BaseCFModule,
     datamodule: TabularDataModule,
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray] = None,
+    pred_fn: Callable[[jax.Array], jax.Array] = None,
     t_configs=None
 ):
     if (pred_fn is None) and (not isinstance(cf_module, BasePredFnCFModule)):
@@ -271,7 +271,7 @@ class _AuxPredFn:
         self.pred_fn = pred_fn
         self.fn_args = deepcopy(_check_aux_pred_fn_args(pred_fn_args))
 
-    def __call__(self, x: jnp.DeviceArray) -> jnp.DeviceArray:
+    def __call__(self, x: jax.Array) -> jax.Array:
         return self.pred_fn(x, **self.fn_args)
 
 
@@ -357,9 +357,9 @@ class BaseEvalMetrics(ABC):
 
 # %% ../nbs/06_evaluate.ipynb 39
 def _compute_acc(
-    input: jnp.DeviceArray, # input dim: [N, k]
-    label: jnp.DeviceArray, # label dim: [N] or [N, 1]
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray]
+    input: jax.Array, # input dim: [N, k]
+    label: jax.Array, # label dim: [N] or [N, 1]
+    pred_fn: Callable[[jax.Array], jax.Array]
 ) -> float:
     y_pred = pred_fn(input).reshape(-1, 1).round()
     label = label.reshape(-1, 1)
@@ -378,9 +378,9 @@ class PredictiveAccuracy(BaseEvalMetrics):
 
 # %% ../nbs/06_evaluate.ipynb 43
 def _compute_val(
-    input: jnp.DeviceArray, # input dim: [N, k]
-    cfs: jnp.DeviceArray, # cfs dim: [N, k]
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray]
+    input: jax.Array, # input dim: [N, k]
+    cfs: jax.Array, # cfs dim: [N, k]
+    pred_fn: Callable[[jax.Array], jax.Array]
 ):
     y_pred = pred_fn(input).reshape(-1, 1).round()
     y_prime = jnp.ones_like(y_pred) - y_pred
@@ -402,8 +402,8 @@ class Validity(BaseEvalMetrics):
 
 # %% ../nbs/06_evaluate.ipynb 46
 def _compute_proximity(
-    inputs: jnp.DeviceArray, # input dim: [N, k]
-    cfs: jnp.DeviceArray, # cfs dim: [N, k]
+    inputs: jax.Array, # input dim: [N, k]
+    cfs: jax.Array, # cfs dim: [N, k]
 ):
     prox = jnp.linalg.norm(inputs - cfs, ord=1, axis=1).mean()
     return prox.item()
@@ -420,8 +420,8 @@ class Proximity(BaseEvalMetrics):
 
 # %% ../nbs/06_evaluate.ipynb 49
 def _compute_spar(
-    input: jnp.DeviceArray,
-    cfs: jnp.DeviceArray,
+    input: jax.Array,
+    cfs: jax.Array,
     cat_idx: int
 ):
     # calculate sparsity
@@ -445,8 +445,8 @@ class Sparsity(BaseEvalMetrics):
 
 # %% ../nbs/06_evaluate.ipynb 51
 def _compute_manifold_dist(
-    input: jnp.DeviceArray,
-    cfs: jnp.DeviceArray,
+    input: jax.Array,
+    cfs: jax.Array,
     n_neighbors: int = 1,
     p: int = 2
 ):

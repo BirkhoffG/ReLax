@@ -9,7 +9,7 @@ from .base import BaseCFModule
 from ..utils import *
 
 # %% ../../nbs/methods/02_diverse.ipynb 4
-def hinge_loss(input: jnp.DeviceArray, target: jnp.DeviceArray):
+def hinge_loss(input: jax.Array, target: jax.Array):
     """
     reference:
     - https://github.com/interpretml/DiCE/blob/a772c8d4fcd88d1cab7f2e02b0bcc045dc0e2eab/dice_ml/explainer_interfaces/dice_pytorch.py#L196-L202
@@ -31,7 +31,7 @@ def l1_mean(X, cfs):
 
 
 # %% ../../nbs/methods/02_diverse.ipynb 6
-def dpp_style(cf: jnp.DeviceArray, n_cfs: int):
+def dpp_style(cf: jax.Array, n_cfs: int):
     det_entries = jnp.ones((n_cfs, n_cfs))
     for i in range(n_cfs):
         for j in range(n_cfs):
@@ -58,8 +58,8 @@ def _compute_regularization_loss(cfs, cat_idx, cat_arrays, n_cfs):
 # %% ../../nbs/methods/02_diverse.ipynb 8
 @auto_reshaping('x')
 def _diverse_cf(
-    x: jnp.DeviceArray,  # `x` shape: (k,), where `k` is the number of features
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],  # y = pred_fn(x)
+    x: jax.Array,  # `x` shape: (k,), where `k` is the number of features
+    pred_fn: Callable[[jax.Array], jax.Array],  # y = pred_fn(x)
     n_cfs: int,
     n_steps: int,
     lr: float,  # learning rate for each `cf` optimization step
@@ -67,7 +67,7 @@ def _diverse_cf(
     key: jax.random.PRNGKey,
     projection_fn: Callable,
     regularization_fn: Callable
-) -> jnp.DeviceArray:  # return `cf` shape: (k,)
+) -> jax.Array:  # return `cf` shape: (k,)
     @jit
     def loss_fn_1(cf_y: Array, y_prime: Array):
         return optax.l2_loss(cf_y.mean(axis=0, keepdims=True), y_prime).mean()
@@ -77,7 +77,7 @@ def _diverse_cf(
         return jnp.mean(jnp.abs(cf - x))
 
     @partial(jit, static_argnums=(1,))
-    def loss_fn_3(cfs: jnp.DeviceArray, n_cfs: int):
+    def loss_fn_3(cfs: jax.Array, n_cfs: int):
         return dpp_style(cfs, n_cfs)
 
     @jit
@@ -90,8 +90,8 @@ def _diverse_cf(
 
     @partial(jit, static_argnums=(2,))
     def loss_fn(
-        cf: jnp.DeviceArray,  # `cf` shape: (k, n_cfs)
-        x: jnp.DeviceArray,  # `x` shape: (k, 1)
+        cf: jax.Array,  # `cf` shape: (k, n_cfs)
+        x: jax.Array,  # `x` shape: (k, 1)
         pred_fn: Callable[[Array], Array],
     ):
         y_pred = pred_fn(x)
@@ -151,8 +151,8 @@ class DiverseCF(BaseCFModule):
     def generate_cf(
         self,
         x: jnp.ndarray,  # `x` shape: (k,), where `k` is the number of features
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],
-    ) -> jnp.DeviceArray:
+        pred_fn: Callable[[jax.Array], jax.Array],
+    ) -> jax.Array:
         return _diverse_cf(
             x=x,  # `x` shape: (k,), where `k` is the number of features
             pred_fn=pred_fn,  # y = pred_fn(x)
@@ -167,11 +167,11 @@ class DiverseCF(BaseCFModule):
 
     def generate_cfs(
         self,
-        X: jnp.DeviceArray,  # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],
+        X: jax.Array,  # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
+        pred_fn: Callable[[jax.Array], jax.Array],
         is_parallel: bool = False,
-    ) -> jnp.DeviceArray:
-        def _generate_cf(x: jnp.DeviceArray) -> jnp.ndarray:
+    ) -> jax.Array:
+        def _generate_cf(x: jax.Array) -> jnp.ndarray:
             return self.generate_cf(x, pred_fn)
 
         return (

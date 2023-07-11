@@ -105,28 +105,28 @@ class AETrainingModule(BaseTrainingModule):
 # %% ../../nbs/methods/03_prototype.ipynb 6
 @auto_reshaping('x')
 def _proto_cf(
-    x: jnp.DeviceArray, # `x` shape: (k,), where `k` is the number of features
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray], # y = pred_fn(x)
+    x: jax.Array, # `x` shape: (k,), where `k` is the number of features
+    pred_fn: Callable[[jax.Array], jax.Array], # y = pred_fn(x)
     n_steps: int,
     lr: float, # learning rate for each `cf` optimization step
     lambda_: float, #  loss = validity_loss + lambda_params * cost
     ae: AETrainingModule,
     ae_params: hk.Params,
-    sampled_data_pos: jnp.DeviceArray,
-    sampled_data_neg: jnp.DeviceArray,
-    sampled_label: jnp.DeviceArray,
+    sampled_data_pos: jax.Array,
+    sampled_data_neg: jax.Array,
+    sampled_label: jax.Array,
     apply_constraints_fn: Callable
-) -> jnp.DeviceArray: # return `cf` shape: (k,)
+) -> jax.Array: # return `cf` shape: (k,)
     @jit
     def proto(data):
         return ae.encode(ae_params, jax.random.PRNGKey(0), data)
 
     @jit
-    def loss_fn_1(cf_y: jnp.DeviceArray, y_prime: jnp.DeviceArray):
+    def loss_fn_1(cf_y: jax.Array, y_prime: jax.Array):
         return jnp.mean(binary_cross_entropy(preds=cf_y, labels=y_prime))
 
     @jit
-    def loss_fn_2(x: jnp.DeviceArray, cf: jnp.DeviceArray):
+    def loss_fn_2(x: jax.Array, cf: jax.Array):
         return jnp.mean(optax.l2_loss(cf, x)) + 0.1 * jnp.mean(jnp.mean(jnp.abs(x - cf)))
 
     @jit
@@ -136,9 +136,9 @@ def _proto_cf(
 
     @partial(jit, static_argnames=['pred_fn'])
     def loss_fn(
-        cf: jnp.DeviceArray, # `cf` shape: (k, 1)
-        x: jnp.DeviceArray,  # `x` shape: (k, 1)
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray]
+        cf: jax.Array, # `cf` shape: (k, 1)
+        x: jax.Array,  # `x` shape: (k, 1)
+        pred_fn: Callable[[jax.Array], jax.Array]
     ):
         y_pred = pred_fn(x)
         y_prime = 1. - y_pred
@@ -225,8 +225,8 @@ class ProtoCF(BaseCFModule, BaseParametricCFModule):
     def generate_cf(
         self,
         x: jnp.ndarray, # `x` shape: (k,), where `k` is the number of features
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray]
-    ) -> jnp.DeviceArray:
+        pred_fn: Callable[[jax.Array], jax.Array]
+    ) -> jax.Array:
         return _proto_cf(
             x= x, # `x` shape: (k,), where `k` is the number of features
             pred_fn=pred_fn, # y = pred_fn(x)
@@ -243,10 +243,10 @@ class ProtoCF(BaseCFModule, BaseParametricCFModule):
 
     def generate_cfs(
         self,
-        X: jnp.DeviceArray, # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],
+        X: jax.Array, # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
+        pred_fn: Callable[[jax.Array], jax.Array],
         is_parallel: bool = False
-    ) -> jnp.DeviceArray:
-        def _generate_cf(x: jnp.DeviceArray) -> jnp.ndarray:
+    ) -> jax.Array:
+        def _generate_cf(x: jax.Array) -> jnp.ndarray:
             return self.generate_cf(x, pred_fn)
         return jax.vmap(_generate_cf)(X) if not is_parallel else jax.pmap(_generate_cf)(X)

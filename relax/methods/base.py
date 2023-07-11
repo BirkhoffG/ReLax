@@ -71,6 +71,6 @@ class BasePredFnCFModule(ABC):
     @abstractmethod
     def pred_fn(
         self, 
-        X: jnp.DeviceArray  # input `X`
-    ) -> jnp.DeviceArray:   # prediction
+        X: jax.Array  # input `X`
+    ) -> jax.Array:   # prediction
         raise NotImplementedError

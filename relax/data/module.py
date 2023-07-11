@@ -61,25 +61,25 @@ class BaseDataModule(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def transform(self, data) -> jnp.DeviceArray:
+    def transform(self, data) -> jax.Array:
         raise NotImplementedError
 
     @abstractmethod
-    def inverse_transform(self, x: jnp.DeviceArray) -> Any:
+    def inverse_transform(self, x: jax.Array) -> Any:
         raise NotImplementedError
 
     def apply_constraints(
         self, 
-        x: jnp.DeviceArray,
-        cf: jnp.DeviceArray,
+        x: jax.Array,
+        cf: jax.Array,
         hard: bool
-    ) -> jnp.DeviceArray:
+    ) -> jax.Array:
         return cf
     
     def apply_regularization(
         self, 
-        x: jnp.DeviceArray,
-        cf: jnp.DeviceArray,
+        x: jax.Array,
+        cf: jax.Array,
         hard: bool
     ):
         raise NotImplementedError
@@ -395,8 +395,8 @@ class TabularDataModule(BaseDataModule):
 
     def inverse_transform(
         self, 
-        x: jnp.DeviceArray, # The transformed input to be scaled back
-        y: jnp.DeviceArray = None # The transformed label to be scaled back. If `None`, the target columns will not be scaled back.
+        x: jax.Array, # The transformed input to be scaled back
+        y: jax.Array = None # The transformed label to be scaled back. If `None`, the target columns will not be scaled back.
     ) -> pd.DataFrame: # Transformed `pd.DataFrame`. 
         """Scaled back into `pd.DataFrame`."""
         X_cont_df = _inverse_transform_np(
@@ -416,10 +416,10 @@ class TabularDataModule(BaseDataModule):
 
     def apply_constraints(
         self, 
-        x: jnp.DeviceArray, # input
-        cf: jnp.DeviceArray, # Unnormalized counterfactuals
+        x: jax.Array, # input
+        cf: jax.Array, # Unnormalized counterfactuals
         hard: bool = False # Apply hard constraints or not
-    ) -> jnp.DeviceArray:
+    ) -> jax.Array:
         """Apply categorical normalization and immutability constraints"""
         cf = cat_normalize(
             cf, cat_arrays=self._cat_arrays, 
@@ -433,8 +433,8 @@ class TabularDataModule(BaseDataModule):
 
     def apply_regularization(
         self, 
-        x: jnp.DeviceArray, # Input
-        cf: jnp.DeviceArray, # Unnormalized counterfactuals
+        x: jax.Array, # Input
+        cf: jax.Array, # Unnormalized counterfactuals
     ) -> float: # Return regularization loss
         """Apply categorical constraints by adding regularization terms"""
         reg_loss = 0.

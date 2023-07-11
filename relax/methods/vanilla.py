@@ -12,13 +12,13 @@ __all__ = ['VanillaCFConfig', 'VanillaCF']
 # %% ../../nbs/methods/01_vanilla.ipynb 4
 @auto_reshaping('x')
 def _vanilla_cf(
-    x: jnp.DeviceArray,  # `x` shape: (k,), where `k` is the number of features
-    pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],  # y = pred_fn(x)
+    x: jax.Array,  # `x` shape: (k,), where `k` is the number of features
+    pred_fn: Callable[[jax.Array], jax.Array],  # y = pred_fn(x)
     n_steps: int,
     lr: float,  # learning rate for each `cf` optimization step
     lambda_: float,  #  loss = validity_loss + lambda_params * cost
     apply_fn: Callable
-) -> jnp.DeviceArray:  # return `cf` shape: (k,)
+) -> jax.Array:  # return `cf` shape: (k,)
     @jit
     def loss_fn_1(cf_y: Array, y_prime: Array):
         return jnp.mean(binary_cross_entropy(preds=cf_y, labels=y_prime))
@@ -41,7 +41,7 @@ def _vanilla_cf(
     @loop_tqdm(n_steps)
     def gen_cf_step(
         i, cf_opt_state: Tuple[Array, optax.OptState] #x: Array, cf: Array, opt_state: optax.OptState
-    ) -> Tuple[jnp.DeviceArray, optax.OptState]:
+    ) -> Tuple[jax.Array, optax.OptState]:
         cf, opt_state = cf_opt_state
         cf_grads = jax.grad(loss_fn)(cf, x, pred_fn)
         cf, opt_state = grad_update(cf_grads, cf, opt_state, opt)
@@ -81,8 +81,8 @@ class VanillaCF(BaseCFModule):
     def generate_cf(
         self,
         x: jnp.ndarray,  # `x` shape: (k,), where `k` is the number of features
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],
-    ) -> jnp.DeviceArray:
+        pred_fn: Callable[[jax.Array], jax.Array],
+    ) -> jax.Array:
         return _vanilla_cf(
             x=x,  # `x` shape: (k,), where `k` is the number of features
             pred_fn=pred_fn,  # y = pred_fn(x)
@@ -94,11 +94,11 @@ class VanillaCF(BaseCFModule):
 
     def generate_cfs(
         self,
-        X: jnp.DeviceArray,  # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
-        pred_fn: Callable[[jnp.DeviceArray], jnp.DeviceArray],
+        X: jax.Array,  # `x` shape: (b, k), where `b` is batch size, `k` is the number of features
+        pred_fn: Callable[[jax.Array], jax.Array],
         is_parallel: bool = False,
-    ) -> jnp.DeviceArray:
-        def _generate_cf(x: jnp.DeviceArray) -> jnp.ndarray:
+    ) -> jax.Array:
+        def _generate_cf(x: jax.Array) -> jnp.ndarray:
             return self.generate_cf(x, pred_fn)
 
         return (

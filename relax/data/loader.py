@@ -27,7 +27,7 @@ class ArrayDataset(Dataset):
 
     def __init__(
         self, 
-        *arrays: jnp.DeviceArray # Numpy array with same first dimension
+        *arrays: jax.Array # Numpy array with same first dimension
     ):
         assert all(arrays[0].shape[0] == arr.shape[0] for arr in arrays), \
             "All arrays must have the same dimension."

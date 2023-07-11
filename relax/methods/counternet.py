@@ -69,7 +69,7 @@ def partition_trainable_params(params: hk.Params, trainable_name: str):
 
 
 # %% ../../nbs/methods/04_counternet.ipynb 9
-def project_immutable_features(x, cf: jnp.DeviceArray, imutable_idx_list: List[int]):
+def project_immutable_features(x, cf: jax.Array, imutable_idx_list: List[int]):
     cf = cf.at[:, imutable_idx_list].set(x[:, imutable_idx_list])
     return cf
 
@@ -325,7 +325,7 @@ class CounterNet(BaseCFModule, BaseParametricCFModule, BasePredFnCFModule):
     def generate_cfs(self, X: jnp.ndarray, pred_fn = None) -> jnp.ndarray:
         return self.module.generate_cfs(X, self.params, rng_key=jax.random.PRNGKey(0))
     
-    def pred_fn(self, X: jnp.DeviceArray):
+    def pred_fn(self, X: jax.Array):
         rng_key = jax.random.PRNGKey(0)
         y_pred = self.module.predict(self.params, rng_key, X)
         return y_pred

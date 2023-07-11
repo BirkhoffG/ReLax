@@ -13,8 +13,8 @@ __all__ = ['summary_plot', 'individual_plot']
 
 # %% ../nbs/07_plotting.ipynb 4
 def _process_exp(
-    x: jnp.DeviceArray, # Dim: (N, k)
-    cf: jnp.DeviceArray, # Dim: (N, k)
+    x: jax.Array, # Dim: (N, k)
+    cf: jax.Array, # Dim: (N, k)
     pred_fn: Callable, # Predictive function
     return_valid: bool = False # Return only valid `x`, `cf`, `y_cf` or not
 ): # Return `x`, `cf`, `y_cf`
@@ -33,8 +33,8 @@ def _process_exp(
 
 # %% ../nbs/07_plotting.ipynb 6
 def _diff(
-    x: jnp.DeviceArray, # Dim: (N, k)
-    cf: jnp.DeviceArray, # Dim: (N, k)
+    x: jax.Array, # Dim: (N, k)
+    cf: jax.Array, # Dim: (N, k)
     pred_fn: Callable, # Predictive function
     datamodule: TabularDataModule, # Data module
     return_valid: bool = False, # Return only valid `x`, `cf`, `y_cf` or not
