@@ -8,19 +8,19 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import einops
-from .utils import auto_reshaping
 
 
 # %% auto 0
 __all__ = ['PREPROCESSING_TRANSFORMATIONS', 'DataPreprocessor', 'MinMaxScaler', 'EncoderPreprocessor', 'OrdinalPreprocessor',
-           'OneHotEncoder', 'Transformation', 'MinMaxTransformation', 'OneHotTransformation', 'Feature', 'Dataset']
+           'OneHotEncoder', 'Transformation', 'MinMaxTransformation', 'OneHotTransformation', 'OrdinalTransformation',
+           'IdentityTransformation', 'Feature', 'FeaturesList']
 
 # %% ../nbs/01_data.utils.ipynb 3
-def _check_fit_xs(xs: np.ndarray):
+def _check_xs(xs: np.ndarray):
     if xs.ndim > 2 or (xs.ndim == 2 and xs.shape[1] != 1):
         raise ValueError(f"MinMaxScaler only supports array with a single feature, but got shape={xs.shape}.")
-        
     
+        
 class DataPreprocessor:
     
     def fit(self, xs, y=None):
@@ -39,7 +39,7 @@ class DataPreprocessor:
 # %% ../nbs/01_data.utils.ipynb 4
 class MinMaxScaler(DataPreprocessor): 
     def fit(self, xs, y=None):
-        _check_fit_xs(xs)
+        _check_xs(xs)
         self.min_ = xs.min(axis=0)
         self.max_ = xs.max(axis=0)
         return self
@@ -51,13 +51,25 @@ class MinMaxScaler(DataPreprocessor):
         return xs * (self.max_ - self.min_) + self.min_
 
 # %% ../nbs/01_data.utils.ipynb 6
+def _unique(xs):
+    if xs.dtype == object:
+        # Note: np.unique does not work with object dtype
+        # We will enforce xs to be string type
+        # It assumes that xs is a list of strings, and might not work
+        # for other cases (e.g., list of string and numbers)
+        return np.unique(xs.astype(str))
+    return np.unique(xs)
+
+# %% ../nbs/01_data.utils.ipynb 7
 class EncoderPreprocessor(DataPreprocessor):
     def _fit(self, xs, y=None):
-        _check_fit_xs(xs)
-        self.categories_ = np.unique(xs)
+        _check_xs(xs)
+        self.categories_ = _unique(xs)
 
     def _transform(self, xs):
         """Transform data to ordinal encoding."""
+        if xs.dtype == object:
+            xs = xs.astype(str)
         ordinal = np.searchsorted(self.categories_, xs)
         return einops.rearrange(ordinal, 'k n -> n k')
     
@@ -65,7 +77,7 @@ class EncoderPreprocessor(DataPreprocessor):
         """Transform ordinal encoded data back to original data."""
         return self.categories_[xs].T
 
-# %% ../nbs/01_data.utils.ipynb 7
+# %% ../nbs/01_data.utils.ipynb 8
 class OrdinalPreprocessor(EncoderPreprocessor):
     def fit(self, xs, y=None):
         self._fit(xs, y)
@@ -80,7 +92,7 @@ class OrdinalPreprocessor(EncoderPreprocessor):
     def inverse_transform(self, xs):
         return self._inverse_transform(xs)
 
-# %% ../nbs/01_data.utils.ipynb 9
+# %% ../nbs/01_data.utils.ipynb 10
 class OneHotEncoder(EncoderPreprocessor):
     # Fit the encoder without sci-kit OneHotEncoder.
     def fit(self, xs, y=None):
@@ -99,7 +111,7 @@ class OneHotEncoder(EncoderPreprocessor):
         xs_int = np.argmax(xs, axis=-1)
         return self._inverse_transform(xs_int).reshape(-1, 1)
 
-# %% ../nbs/01_data.utils.ipynb 12
+# %% ../nbs/01_data.utils.ipynb 13
 class Transformation:
     def __init__(self, name, transformer):
         self.name = name
@@ -118,18 +130,18 @@ class Transformation:
     def inverse_transform(self, xs):
         return self.transformer.inverse_transform(xs)
 
-    def apply_constraint(self, xs):
+    def apply_constraints(self, xs):
         return xs
 
-# %% ../nbs/01_data.utils.ipynb 13
+# %% ../nbs/01_data.utils.ipynb 14
 class MinMaxTransformation(Transformation):
     def __init__(self):
         super().__init__("minmax", MinMaxScaler())
 
-    def apply_constraint(self, xs, cfs, hard: bool = False):
+    def apply_constraints(self, xs, cfs, hard: bool = False):
         return jnp.clip(cfs, 0., 1.)
 
-# %% ../nbs/01_data.utils.ipynb 15
+# %% ../nbs/01_data.utils.ipynb 16
 class OneHotTransformation(Transformation):
     def __init__(self):
         super().__init__("ohe", OneHotEncoder())
@@ -138,7 +150,7 @@ class OneHotTransformation(Transformation):
     def categories(self) -> int:
         return len(self.transformer.categories_)
 
-    def apply_constraint(self, xs, cfs, hard: bool = False):
+    def apply_constraints(self, xs, cfs, hard: bool = False):
         return jax.lax.cond(
             hard,
             true_fun=lambda x: jax.nn.one_hot(jnp.argmax(x, axis=-1), self.categories),
@@ -146,13 +158,40 @@ class OneHotTransformation(Transformation):
             operand=cfs,
         )
 
-# %% ../nbs/01_data.utils.ipynb 17
+# %% ../nbs/01_data.utils.ipynb 18
+class OrdinalTransformation(Transformation):
+    def __init__(self):
+        super().__init__("ordinal", OrdinalPreprocessor())
+
+    @property
+    def categories(self) -> int:
+        return len(self.transformer.categories_)
+    
+class IdentityTransformation(Transformation):
+    def __init__(self):
+        super().__init__("identity", None)
+
+    def fit(self, xs, y=None):
+        return self
+    
+    def transform(self, xs):
+        return xs
+    
+    def fit_transform(self, xs, y=None):
+        return xs
+
+    def apply_constraints(self, xs, cfs, hard: bool = False):
+        return cfs
+
+# %% ../nbs/01_data.utils.ipynb 20
 PREPROCESSING_TRANSFORMATIONS = {
-    'ohe': OneHotTransformation(),
-    'minmax': MinMaxTransformation(),
+    'ohe': OneHotTransformation,
+    'minmax': MinMaxTransformation,
+    'ordinal': OrdinalPreprocessor,
+    'identity': IdentityTransformation,
 }
 
-# %% ../nbs/01_data.utils.ipynb 19
+# %% ../nbs/01_data.utils.ipynb 22
 class Feature:
     
     def __init__(
@@ -166,7 +205,7 @@ class Feature:
         self.name = name
         self.data = data
         if isinstance(transformation, str):
-            self.transformation = PREPROCESSING_TRANSFORMATIONS[transformation]
+            self.transformation = PREPROCESSING_TRANSFORMATIONS[transformation]()
         elif isinstance(transformation, Transformation):
             self.transformation = transformation
         else:
@@ -222,16 +261,16 @@ class Feature:
     def inverse_transform(self, xs):
         return self.transformation.inverse_transform(xs)
     
-    def apply_constraint(self, xs, cfs, hard: bool = False):
+    def apply_constraints(self, xs, cfs, hard: bool = False):
         return jax.lax.cond(
             self.is_immutable,
             true_fun=lambda xs: xs,
-            false_fun=lambda _: self.transformation.apply_constraint(xs, cfs, hard),
+            false_fun=lambda _: self.transformation.apply_constraints(xs, cfs, hard),
             operand=xs,
         )
 
-# %% ../nbs/01_data.utils.ipynb 21
-class Dataset:
+# %% ../nbs/01_data.utils.ipynb 24
+class FeaturesList:
     def __init__(
         self,
         features: list[Feature],
@@ -276,9 +315,9 @@ class Dataset:
     def inverse_transform(self, xs):
         raise NotImplementedError
 
-    def apply_constraint(self, xs, cfs, hard: bool = False):
+    def apply_constraints(self, xs, cfs, hard: bool = False):
         constrainted_cfs = []
         for (start, end), feat in zip(self.feature_indices, self.features):
-            _cfs = feat.apply_constraint(xs[:, start:end], cfs[:, start:end], hard)
+            _cfs = feat.apply_constraints(xs[:, start:end], cfs[:, start:end], hard)
             constrainted_cfs.append(_cfs)
         return jnp.concatenate(constrainted_cfs, axis=-1)
