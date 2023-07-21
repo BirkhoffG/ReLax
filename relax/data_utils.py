@@ -8,12 +8,13 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import einops
-
+import os, sys, json, pickle
+import shutil
 
 # %% auto 0
 __all__ = ['PREPROCESSING_TRANSFORMATIONS', 'DataPreprocessor', 'MinMaxScaler', 'EncoderPreprocessor', 'OrdinalPreprocessor',
            'OneHotEncoder', 'Transformation', 'MinMaxTransformation', 'OneHotTransformation', 'OrdinalTransformation',
-           'IdentityTransformation', 'Feature', 'FeaturesList']
+           'IdentityTransformation', 'Feature', 'save_pytree', 'load_pytree', 'FeaturesList']
 
 # %% ../nbs/01_data.utils.ipynb 3
 def _check_xs(xs: np.ndarray):
@@ -35,6 +36,15 @@ class DataPreprocessor:
     
     def inverse_transform(self, xs):
         raise NotImplementedError
+    
+    def to_dict(self):
+        raise NotImplementedError
+    
+    def from_dict(self, params: dict):
+        raise NotImplementedError
+    
+    # def __dict__(self):
+    #     return self.to_dict()
 
 # %% ../nbs/01_data.utils.ipynb 4
 class MinMaxScaler(DataPreprocessor): 
@@ -49,6 +59,14 @@ class MinMaxScaler(DataPreprocessor):
     
     def inverse_transform(self, xs):
         return xs * (self.max_ - self.min_) + self.min_
+    
+    def from_dict(self, params: dict):
+        self.min_ = params["min_"]
+        self.max_ = params["max_"]
+        return self
+    
+    def to_dict(self) -> dict:
+        return {"min_": self.min_, "max_": self.max_}
 
 # %% ../nbs/01_data.utils.ipynb 6
 def _unique(xs):
@@ -76,6 +94,13 @@ class EncoderPreprocessor(DataPreprocessor):
     def _inverse_transform(self, xs):
         """Transform ordinal encoded data back to original data."""
         return self.categories_[xs].T
+    
+    def from_dict(self, params: dict):
+        self.categories_ = params["categories_"]
+        return self
+    
+    def to_dict(self) -> dict:
+        return {"categories_": self.categories_}
 
 # %% ../nbs/01_data.utils.ipynb 8
 class OrdinalPreprocessor(EncoderPreprocessor):
@@ -132,6 +157,14 @@ class Transformation:
 
     def apply_constraints(self, xs):
         return xs
+    
+    def from_dict(self, params: dict):
+        self.name = params["name"]
+        self.transformer.from_dict(params["transformer"])
+        return self
+    
+    def to_dict(self) -> dict:
+        return {"name": self.name, "transformer": self.transformer.to_dict()}
 
 # %% ../nbs/01_data.utils.ipynb 14
 class MinMaxTransformation(Transformation):
@@ -182,6 +215,13 @@ class IdentityTransformation(Transformation):
 
     def apply_constraints(self, xs, cfs, hard: bool = False):
         return cfs
+    
+    def to_dict(self):
+        return {'name': 'identity'}
+    
+    def from_dict(self, params: dict):
+        self.name = params["name"]
+        return self
 
 # %% ../nbs/01_data.utils.ipynb 20
 PREPROCESSING_TRANSFORMATIONS = {
@@ -208,6 +248,13 @@ class Feature:
             self.transformation = PREPROCESSING_TRANSFORMATIONS[transformation]()
         elif isinstance(transformation, Transformation):
             self.transformation = transformation
+        elif isinstance(transformation, dict):
+            # TODO: only supported transformation can be used for serialization
+            t_name = transformation['name']
+            if t_name not in PREPROCESSING_TRANSFORMATIONS.keys():
+                raise ValueError("Only supported transformation can be inited from dict. "
+                                 f"Got {t_name}, but should be one of {PREPROCESSING_TRANSFORMATIONS.keys()}.")
+            self.transformation = PREPROCESSING_TRANSFORMATIONS[t_name]().from_dict(transformation)
         else:
             raise ValueError(f"Unknown transformer {transformation}")
         self._transformed_data = transformed_data
@@ -229,7 +276,7 @@ class Feature:
             'name': self.name,
             'data': self.data,
             'transformed_data': self.transformed_data,
-            'transformation': self.transformation,
+            'transformation': self.transformation.to_dict(),
             'is_immutable': self.is_immutable,
         }
     
@@ -270,6 +317,32 @@ class Feature:
         )
 
 # %% ../nbs/01_data.utils.ipynb 24
+def _is_np_array(x):
+    return isinstance(x, np.ndarray) or isinstance(x, jnp.ndarray)
+
+def save_pytree(pytree, saved_dir):
+    with open(os.path.join(saved_dir, "data.npy"), "wb") as f:
+        for x in jax.tree_util.tree_leaves(pytree):
+            np.save(f, x)
+
+    tree_struct = jax.tree_util.tree_map(lambda t: _is_np_array(t), pytree)
+    with open(os.path.join(saved_dir, "treedef.pkl"), "wb") as f:
+        pickle.dump(tree_struct, f)
+
+
+def load_pytree(saved_dir):
+    with open(os.path.join(saved_dir, "treedef.pkl"), "rb") as f:
+        tree_struct = pickle.load(f)
+
+    leaves, treedef = jax.tree_util.tree_flatten(tree_struct)
+    with open(os.path.join(saved_dir, "data.npy"), "rb") as f:
+        flat_state = [
+            np.load(f, allow_pickle=True) if is_arr else np.load(f, allow_pickle=True).item()
+            for is_arr in leaves
+        ]
+    return jax.tree_util.tree_unflatten(treedef, flat_state)
+
+# %% ../nbs/01_data.utils.ipynb 26
 class FeaturesList:
     def __init__(
         self,
@@ -295,6 +368,25 @@ class FeaturesList:
         if self._transformed_data is None:
             self._transform_data()
         return self._transformed_data
+    
+    def to_dict(self):
+        return {
+            'features': [feat.to_dict() for feat in self.features],
+        }
+    
+    @classmethod
+    def from_dict(cls, d):
+        return cls(
+            features=[Feature.from_dict(feat) for feat in d['features']],
+        )
+
+    def save(self, saved_dir):
+        os.makedirs(saved_dir, exist_ok=True)
+        save_pytree(self.to_dict(), saved_dir)
+        
+    @classmethod
+    def load_from_path(cls, saved_dir):
+        return cls.from_dict(load_pytree(saved_dir))
 
     def _transform_data(self):
         self._feature_indices = []
