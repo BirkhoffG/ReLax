@@ -9,6 +9,8 @@ import jax
 from jax import numpy as jnp, random as jrand, lax, Array
 import pandas as pd
 import numpy as np
+from pathlib import Path
+import json, os, shutil
 # from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
 # from sklearn.base import TransformerMixin
 # from sklearn.utils.validation import check_is_fitted, NotFittedError
@@ -18,7 +20,7 @@ from pydantic.fields import ModelField, Field
 from typing import List, Dict, Union, Optional, Tuple, Callable, Any, Iterable
 
 # %% auto 0
-__all__ = ['BaseDataModule', 'DataModuleConfig', 'DataModule', 'load_data']
+__all__ = ['BaseDataModule', 'DataModuleConfig', 'DataModule', 'download_data_module_files', 'load_data']
 
 # %% ../nbs/01_data.ipynb 6
 class BaseDataModule(BaseModule):
@@ -71,8 +73,10 @@ class DataModuleConfig(BaseConfig):
         key = jrand.PRNGKey(seed)
         total_length = data.shape[0]
         train_length = int((1 - test_size) * total_length)
-        self.train_indices = jrand.permutation(key, total_length)[:train_length].tolist()
-        self.test_indices = jrand.permutation(key, total_length)[train_length:].tolist()
+        if len(self.train_indices) == 0:
+            self.train_indices = jrand.permutation(key, total_length)[:train_length].tolist()
+        if len(self.test_indices) == 0:
+            self.test_indices = jrand.permutation(key, total_length)[train_length:].tolist()
 
 # %% ../nbs/01_data.ipynb 10
 class DataModule(BaseDataModule):
@@ -92,6 +96,24 @@ class DataModule(BaseDataModule):
         self.prepare(features, label)
         config.shuffle(self.xs, test_size=0.25)
         super().__init__(config, name=config.data_name)
+    
+    def save(self, path):
+        path = Path(path)
+        if not path.exists():
+            path.mkdir(parents=True)
+        self._features.save(path / 'features')
+        self._label.save(path / 'label')
+        with open(path / "config.json", "w") as f:
+            json.dump(self.config.dict(), f)
+
+    @classmethod
+    def load_from_path(cls, path, config=None):
+        path = Path(path)
+        if config is None:
+            config = load_json(path / 'config.json')
+        features = FeaturesList.load_from_path(path / 'features')
+        label = FeaturesList.load_from_path(path / 'label')
+        return cls(config, features=features, label=label)
 
     def convert_to_features(
         self, 
@@ -100,10 +122,10 @@ class DataModule(BaseDataModule):
         features: list[Feature] = None
     ):
         to_feature = lambda col, data, is_continuous: Feature(
-                name=col, data=data[col].to_numpy().reshape(-1, 1),
-                transformation=config.continuous_transformation if is_continuous else config.discret_transformation,
-                is_immutable=col in config.imutable_cols
-            )
+            name=col, data=data[col].to_numpy().reshape(-1, 1),
+            transformation=config.continuous_transformation if is_continuous else config.discret_transformation,
+            is_immutable=col in config.imutable_cols
+        )
 
         if features is not None:
             return features
@@ -126,7 +148,7 @@ class DataModule(BaseDataModule):
     def prepare(self, features, label):
         if features is not None and label is not None:
             self._features = FeaturesList(features)
-            self._label = label
+            self._label = FeaturesList(label)
         elif features is None:
             raise ValueError("Features cannot be None.")
         elif label is None:
@@ -165,124 +187,85 @@ class DataModule(BaseDataModule):
         return self._features.apply_constraints(x, cf, hard)
 
 # %% ../nbs/01_data.ipynb 13
-DEFAULT_DATA_CONFIGS = {
-    'adult': {
-        'data' :'assets/adult/data.csv',
-        'conf' :'assets/adult/configs.json',
-        'model' :'assets/adult/model'
-    },
-    'heloc': {
-        'data': 'assets/heloc/data.csv',
-        'conf': 'assets/heloc/configs.json',
-        'model' :'assets/heloc/model'
-    },
-    'oulad': {
-        'data': 'assets/oulad/data.csv',
-        'conf': 'assets/oulad/configs.json',
-        'model' :'assets/oulad/model'
-    },
-    'credit': {
-        'data': 'assets/credit/data.csv',
-        'conf': 'assets/credit/configs.json',
-        'model' :'assets/credit/model'
-    },
-    'cancer': {
-        'data': 'assets/cancer/data.csv',
-        'conf': 'assets/cancer/configs.json',
-        'model' :'assets/cancer/model'
-    },
-    'student_performance': {
-        'data': 'assets/student_performance/data.csv',
-        'conf': 'assets/student_performance/configs.json',
-        'model' :'assets/student_performance/model'
-    },
-    'titanic': {
-        'data': 'assets/titanic/data.csv',
-        'conf': 'assets/titanic/configs.json',
-        'model' :'assets/titanic/model'
-    },
-    'german': {
-        'data': 'assets/german/data.csv',
-        'conf': 'assets/german/configs.json',
-        'model' :'assets/german/model'
-    },
-    'spam': {
-        'data': 'assets/spam/data.csv',
-        'conf': 'assets/spam/configs.json',
-        'model' :'assets/spam/model'
-    },
-    'ozone': {
-        'data': 'assets/ozone/data.csv',
-        'conf': 'assets/ozone/configs.json',
-        'model' :'assets/ozone/model'
-    },
-    'qsar': {
-        'data': 'assets/qsar/data.csv',
-        'conf': 'assets/qsar/configs.json',
-        'model' :'assets/qsar/model'
-    },
-    'bioresponse': {
-        'data': 'assets/bioresponse/data.csv',
-        'conf': 'assets/bioresponse/configs.json',
-        'model' :'assets/bioresponse/model'
-    },
-    'churn': {
-        'data': 'assets/churn/data.csv',
-        'conf': 'assets/churn/configs.json',
-        'model' :'assets/churn/model'
-    },
-    'road': {
-        'data': 'assets/road/data.csv',
-        'conf': 'assets/road/configs.json',
-        'model' :'assets/road/model'
-    }
+DEFAULT_DATA = [
+    'adult',
+    'heloc',
+    'oulad',
+    'credit',
+    'cancer',
+    'student_performance',
+    'titanic',
+    'german',
+    'spam',
+    'ozone',
+    'qsar',
+    'bioresponse',
+    'churn',
+    'road'
+ ]
+
+DEFAULT_DATA_CONFIGS = { 
+    data: { 
+        'data': f"{data}/data", 'model': f"{data}/model",
+    } for data in DEFAULT_DATA
 }
 
 # %% ../nbs/01_data.ipynb 17
 def _validate_dataname(data_name: str):
-    if data_name not in DEFAULT_DATA_CONFIGS.keys():
-        raise ValueError(f'`data_name` must be one of {DEFAULT_DATA_CONFIGS.keys()}, '
+    if data_name not in DEFAULT_DATA:
+        raise ValueError(f'`data_name` must be one of {DEFAULT_DATA}, '
             f'but got data_name={data_name}.')
 
 # %% ../nbs/01_data.ipynb 18
+def download_data_module_files(
+    data_name: str, # The name of data
+    data_parent_dir: Path, # The directory to save data.
+    download_original_data: bool = False, # Download original data or not
+):
+    files = [
+        "features/data.npy", "features/treedef.json",
+        "label/data.npy", "label/treedef.json",
+        "config.json"
+    ]
+    if download_original_data:
+        files.append("data.csv")
+    for f in files:
+        url = f"https://github.com/BirkhoffG/ReLax-Assets/raw/master/{data_name}/data/{f}"
+        f_path = data_parent_dir / f'{data_name}/data' / f
+        os.makedirs(f_path.parent, exist_ok=True)
+        if not f_path.is_file(): urlretrieve(url, f_path)
+
+
 def load_data(
     data_name: str, # The name of data
     return_config: bool = False, # Return `data_config `or not
-    data_configs: dict = None # Data configs to override default configuration
-) -> TabularDataModule | Tuple[TabularDataModule, TabularDataModuleConfigs]: 
+    data_configs: dict = None, # Data configs to override default configuration
+    download_original_data: bool = False, # Download original data or not
+) -> DataModule | Tuple[DataModule, DataModuleConfig]: 
     """High-level util function for loading `data` and `data_config`."""
     
     _validate_dataname(data_name)
 
-    # get data/config urls
-    _data_path = DEFAULT_DATA_CONFIGS[data_name]['data']
-    _conf_path = DEFAULT_DATA_CONFIGS[data_name]['conf']
-    
-    data_url = f"https://github.com/BirkhoffG/ReLax/raw/master/{_data_path}"
-    conf_url = f"https://github.com/BirkhoffG/ReLax/raw/master/{_conf_path}"
-
     # create new dir
-    data_dir = Path(os.getcwd()) / "cf_data" / data_name
-    if not data_dir.exists():
-        os.makedirs(data_dir)
-    data_path = data_dir / 'data.csv'
-    conf_path = data_dir / 'configs.json'
-
-    # download data/configs
-    if not data_path.is_file():
-        urlretrieve(data_url, data_path)    
-    if not conf_path.is_file():
-        urlretrieve(conf_url, conf_path)
+    data_parent_dir = Path(os.getcwd()) / "relax-assets"
+    if not data_parent_dir.exists():
+        os.makedirs(data_parent_dir, exist_ok=True)
+    # download files
+    download_data_module_files(
+        data_name, data_parent_dir, 
+        download_original_data=download_original_data
+    )
 
     # read config
-    config = load_json(conf_path)['data_configs']
-    config['data_dir'] = str(data_path)
+    conf_path = data_parent_dir / f'{data_name}/data/config.json'
+    config = load_json(conf_path)
 
     if not (data_configs is None):
         config.update(data_configs)
 
-    config = TabularDataModuleConfigs(**config)
-    data_module = TabularDataModule(config)
+    config = DataModuleConfig(**config)
+    data_dir = data_parent_dir / f'{data_name}/data'
+    data_module = DataModule.load_from_path(data_dir, config=config)
 
     if return_config:
         return data_module, config

@@ -317,22 +317,22 @@ class Feature:
         )
 
 # %% ../nbs/01_data.utils.ipynb 24
-def _is_np_array(x):
-    return isinstance(x, np.ndarray) or isinstance(x, jnp.ndarray)
+def _is_array(x):
+    return isinstance(x, np.ndarray) or isinstance(x, jnp.ndarray) or isinstance(x, list)
 
 def save_pytree(pytree, saved_dir):
     with open(os.path.join(saved_dir, "data.npy"), "wb") as f:
         for x in jax.tree_util.tree_leaves(pytree):
             np.save(f, x)
 
-    tree_struct = jax.tree_util.tree_map(lambda t: _is_np_array(t), pytree)
-    with open(os.path.join(saved_dir, "treedef.pkl"), "wb") as f:
-        pickle.dump(tree_struct, f)
+    tree_struct = jax.tree_util.tree_map(lambda t: _is_array(t), pytree)
+    with open(os.path.join(saved_dir, "treedef.json"), "w") as f:
+        json.dump(tree_struct, f)
 
 
 def load_pytree(saved_dir):
-    with open(os.path.join(saved_dir, "treedef.pkl"), "rb") as f:
-        tree_struct = pickle.load(f)
+    with open(os.path.join(saved_dir, "treedef.json"), "r") as f:
+        tree_struct = json.load(f)
 
     leaves, treedef = jax.tree_util.tree_flatten(tree_struct)
     with open(os.path.join(saved_dir, "data.npy"), "rb") as f:
@@ -346,12 +346,25 @@ def load_pytree(saved_dir):
 class FeaturesList:
     def __init__(
         self,
-        features: list[Feature],
+        features: list[Feature] | FeaturesList,
         *args, **kwargs
     ):
-        self._features = features
-        self._feature_indices = []
-        self._transformed_data = None
+        if isinstance(features, FeaturesList):
+            self._features = features.features
+            self._feature_indices = features.feature_indices
+            self._transformed_data = features.transformed_data
+        elif isinstance(features, Feature):
+            self._features = [features]
+            self._feature_indices = []
+            self._transformed_data = None
+        elif isinstance(features, list):
+            if len(features) > 0 and not isinstance(features[0], Feature):
+                raise ValueError(f"Invalid features type: {type(features[0]).__name__}")
+            self._features = features
+            self._feature_indices = []
+            self._transformed_data = None
+        else:
+            raise ValueError(f"Unknown features type {type(features)}")
 
     @property
     def features(self):
